@@ -12,27 +12,38 @@
             </a-space>
         </a-col>
         <a-col :xs="12" :sm="12" :lg="12" :style="{ textAlign: 'right' }">
-            <a-button-group>
-                <a-button icon="sync" @click="refreshOutboundTraffic()"
-                    :loading="refreshing"></a-button>
-                <a-popconfirm placement="topRight"
-                    @confirm="resetOutboundTraffic(-1)"
-                    title='{{ i18n "pages.inbounds.resetTrafficContent"}}'
-                    :overlay-class-name="themeSwitcher.currentTheme"
-                    ok-text='{{ i18n "reset"}}'
-                    cancel-text='{{ i18n "cancel"}}'>
-                    <a-icon slot="icon" type="question-circle-o"
-                        :style="{ color: themeSwitcher.isDarkTheme ? '#008771' : '#008771' }"></a-icon>
-                    <a-button icon="retweet"></a-button>
-                </a-popconfirm>
-            </a-button-group>
+            <a-space direction="horizontal" size="small">
+                <a-input
+                    v-model="outboundSearchText"
+                    :placeholder="searchPlaceholder"
+                    allow-clear
+                    style="width: 200px;"
+                    @change="onOutboundSearch">
+                    <a-icon slot="prefix" type="search" />
+                </a-input>
+                <a-button-group>
+                    <a-button icon="sync" @click="refreshOutboundTraffic()"
+                        :loading="refreshing"></a-button>
+                    <a-popconfirm placement="topRight"
+                        @confirm="resetOutboundTraffic(-1)"
+                        title='{{ i18n "pages.inbounds.resetTrafficContent"}}'
+                        :overlay-class-name="themeSwitcher.currentTheme"
+                        ok-text='{{ i18n "reset"}}'
+                        cancel-text='{{ i18n "cancel"}}'>
+                        <a-icon slot="icon" type="question-circle-o"
+                            :style="{ color: themeSwitcher.isDarkTheme ? '#008771' : '#008771' }"></a-icon>
+                        <a-button icon="retweet"></a-button>
+                    </a-popconfirm>
+                </a-button-group>
+            </a-space>
         </a-col>
     </a-row>
     <a-table :columns="outboundColumns" bordered :row-key="r => r.key"
         :data-source="outboundData"
-        :scroll="isMobile ? {} : { x: 800 }" :pagination="false"
+        :scroll="isMobile ? {} : { x: 800 }" :pagination="outboundPagination"
         :indent-size="0"
-        :locale='{ filterConfirm: `{{ i18n "confirm" }}`, filterReset: `{{ i18n "reset" }}` }'>
+        :locale='{ filterConfirm: `{{ i18n "confirm" }}`, filterReset: `{{ i18n "reset" }}` }'
+        :loading="refreshing">
         <template slot="action" slot-scope="text, outbound, index">
             <span>[[ index+1 ]]</span>
             <a-dropdown :trigger="['click']">

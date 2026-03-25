@@ -258,6 +258,17 @@
       inboundTags: [],
       outboundsTraffic: [],
       outboundTestStates: {}, // Track testing state and results for each outbound
+      outboundPagination: {
+        current: 1,
+        pageSize: 50,
+        total: 0,
+        showSizeChanger: true,
+        showQuickJumper: true,
+        showTotal: total => `Total ${total} items`,
+        pageSizeOptions: ['20', '50', '100', '200', '500']
+      },
+      outboundSearchText: '',
+      searchPlaceholder: 'Search by tag...',
       saveBtnDisable: true,
       refreshing: false,
       restartResult: '',
@@ -597,6 +608,8 @@
             if (outbound.tag.length > 0) {
               this.templateSettings.outbounds.push(outbound);
               this.outboundSettings = JSON.stringify(this.templateSettings.outbounds);
+              // Reset to first page to show the newly added outbound
+              this.outboundPagination.current = 1;
             }
             outModal.close();
           },
@@ -622,6 +635,11 @@
         outbounds = this.templateSettings.outbounds;
         outbounds.splice(index, 1);
         this.outboundSettings = JSON.stringify(outbounds);
+        // Reset to first page if current page is now empty
+        const maxPage = Math.max(1, Math.ceil(outbounds.length / this.outboundPagination.pageSize));
+        if (this.outboundPagination.current > maxPage) {
+          this.outboundPagination.current = maxPage;
+        }
       },
       setFirstOutbound(index) {
         outbounds = this.templateSettings.outbounds;
@@ -1057,6 +1075,10 @@
       },
       showWarp() {
         warpModal.show();
+      },
+      onOutboundSearch() {
+        // Reset to first page when searching
+        this.outboundPagination.current = 1;
       }
     },
     async mounted() {
@@ -1071,8 +1093,10 @@
           window.wsClient.connect();
           window.wsClient.on('outbounds', (payload) => {
             if (payload) {
+              // Only update traffic data, don't force full re-render
               this.outboundsTraffic = payload;
-              this.$forceUpdate();
+              // The table will automatically update due to reactive data binding
+              // No need for $forceUpdate() which causes performance issues
             }
           });
       }
@@ -1118,6 +1142,16 @@
               data.push({ 'key': index, ...o });
             });
           }
+          // Filter by search text
+          if (this.outboundSearchText && this.outboundSearchText.trim() !== '') {
+            const searchText = this.outboundSearchText.toLowerCase().trim();
+            data = data.filter(item =>
+              (item.tag && item.tag.toLowerCase().includes(searchText)) ||
+              (item.protocol && item.protocol.toLowerCase().includes(searchText))
+            );
+          }
+          // Update total count for pagination
+          this.outboundPagination.total = data.length;
           return data;
         },
       },
