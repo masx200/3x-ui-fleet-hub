@@ -95,8 +95,18 @@ func GetDBFolderPath() string {
 	return "/etc/x-ui"
 }
 
+var customDBPath string
+
+// SetDBPath sets a custom database path.
+func SetDBPath(path string) {
+	customDBPath = path
+}
+
 // GetDBPath returns the full path to the database file.
 func GetDBPath() string {
+	if customDBPath != "" {
+		return customDBPath
+	}
 	return fmt.Sprintf("%s/%s.db", GetDBFolderPath(), GetName())
 }
 

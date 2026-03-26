@@ -412,9 +412,13 @@ func main() {
 	var showVersion bool
 	flag.BoolVar(&showVersion, "v", false, "show version")
 
+	var database string
+
 	runCmd := flag.NewFlagSet("run", flag.ExitOnError)
+	runCmd.StringVar(&database, "database", "", "Path to database file (default: /etc/x-ui/x-ui.db)")
 
 	settingCmd := flag.NewFlagSet("setting", flag.ExitOnError)
+	settingCmd.StringVar(&database, "database", "", "Path to database file (default: /etc/x-ui/x-ui.db)")
 	var port int
 	var username string
 	var password string
@@ -456,6 +460,9 @@ func main() {
 		fmt.Println("    run            run web panel")
 		fmt.Println("    migrate        migrate form other/old x-ui")
 		fmt.Println("    setting        set settings")
+		fmt.Println()
+		fmt.Println("Global Options:")
+		fmt.Println("    -database      Path to database file (default: /etc/x-ui/x-ui.db)")
 	}
 
 	flag.Parse()
@@ -471,14 +478,31 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+		if database != "" {
+			config.SetDBPath(database)
+		}
 		runWebServer()
 	case "migrate":
+		// Parse database parameter for migrate command
+		migrateCmd := flag.NewFlagSet("migrate", flag.ExitOnError)
+		migrateCmd.StringVar(&database, "database", "", "Path to database file (default: /etc/x-ui/x-ui.db)")
+		err := migrateCmd.Parse(os.Args[2:])
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if database != "" {
+			config.SetDBPath(database)
+		}
 		migrateDb()
 	case "setting":
 		err := settingCmd.Parse(os.Args[2:])
 		if err != nil {
 			fmt.Println(err)
 			return
+		}
+		if database != "" {
+			config.SetDBPath(database)
 		}
 		if reset {
 			resetSetting()
@@ -501,15 +525,27 @@ func main() {
 			updateTgbotEnableSts(enabletgbot)
 		}
 	case "cert":
-		err := settingCmd.Parse(os.Args[2:])
+		certCmd := flag.NewFlagSet("cert", flag.ExitOnError)
+		certCmd.StringVar(&database, "database", "", "Path to database file (default: /etc/x-ui/x-ui.db)")
+		var certReset bool
+		certCmd.BoolVar(&certReset, "reset", false, "Reset certificate settings")
+		var certPublicKey string
+		certCmd.StringVar(&certPublicKey, "webCert", "", "Set path to public key file for panel")
+		var certPrivateKey string
+		certCmd.StringVar(&certPrivateKey, "webCertKey", "", "Set path to private key file for panel")
+
+		err := certCmd.Parse(os.Args[2:])
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		if reset {
+		if database != "" {
+			config.SetDBPath(database)
+		}
+		if certReset {
 			updateCert("", "")
 		} else {
-			updateCert(webCertFile, webKeyFile)
+			updateCert(certPublicKey, certPrivateKey)
 		}
 	default:
 		fmt.Println("Invalid subcommands")
