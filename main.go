@@ -460,6 +460,7 @@ func main() {
 		fmt.Println("    run            run web panel")
 		fmt.Println("    migrate        migrate form other/old x-ui")
 		fmt.Println("    setting        set settings")
+		fmt.Println("    cert           update SSL certificate")
 		fmt.Println()
 		fmt.Println("Global Options:")
 		fmt.Println("    -database      Path to database file (default: /etc/x-ui/x-ui.db)")
