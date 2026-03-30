@@ -265,7 +265,15 @@
         showSizeChanger: true,
         showQuickJumper: true,
         showTotal: total => `Total ${total} items`,
-        pageSizeOptions: ['20', '50', '100', '200', '500']
+        pageSizeOptions: ['20', '50', '100', '200', '500'],
+        onChange: (page, pageSize) => {
+          this.outboundPagination.current = page;
+          this.outboundPagination.pageSize = pageSize;
+        },
+        onShowSizeChange: (current, size) => {
+          this.outboundPagination.current = 1;
+          this.outboundPagination.pageSize = size;
+        }
       },
       outboundSearchText: '',
       searchPlaceholder: 'Search by tag...',
@@ -1162,7 +1170,10 @@
           }
           // Update total count for pagination
           this.outboundPagination.total = data.length;
-          return data;
+          // Apply pagination to return only current page data
+          const start = (this.outboundPagination.current - 1) * this.outboundPagination.pageSize;
+          const end = start + this.outboundPagination.pageSize;
+          return data.slice(start, end);
         },
       },
       reverseData: {
