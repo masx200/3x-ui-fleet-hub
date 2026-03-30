@@ -618,22 +618,26 @@
         });
       },
       editOutbound(index) {
+        // Use originalIndex to get the correct outbound from the full array
+        const actualIndex = this.outboundData[index]?.originalIndex ?? index;
         outModal.show({
           title: '{{ i18n "pages.xray.outbound.editOutbound"}} ' + (index + 1),
-          outbound: app.templateSettings.outbounds[index],
+          outbound: app.templateSettings.outbounds[actualIndex],
           confirm: (outbound) => {
             outModal.loading();
-            this.templateSettings.outbounds[index] = outbound;
+            this.templateSettings.outbounds[actualIndex] = outbound;
             this.outboundSettings = JSON.stringify(this.templateSettings.outbounds);
             outModal.close();
           },
           isEdit: true,
-          tags: this.outboundData.filter((o) => o.key != index).map(obj => obj.tag)
+          tags: this.outboundData.filter((o, i) => i != index).map(obj => obj.tag)
         });
       },
       deleteOutbound(index) {
+        // Use originalIndex to get the correct index in the full array
+        const actualIndex = this.outboundData[index]?.originalIndex ?? index;
         outbounds = this.templateSettings.outbounds;
-        outbounds.splice(index, 1);
+        outbounds.splice(actualIndex, 1);
         this.outboundSettings = JSON.stringify(outbounds);
         // Reset to first page if current page is now empty
         const maxPage = Math.max(1, Math.ceil(outbounds.length / this.outboundPagination.pageSize));
@@ -642,12 +646,16 @@
         }
       },
       setFirstOutbound(index) {
+        // Use originalIndex to get the correct index in the full array
+        const actualIndex = this.outboundData[index]?.originalIndex ?? index;
         outbounds = this.templateSettings.outbounds;
-        outbounds.splice(0, 0, outbounds.splice(index, 1)[0]);
+        outbounds.splice(0, 0, outbounds.splice(actualIndex, 1)[0]);
         this.outboundSettings = JSON.stringify(outbounds);
       },
       async testOutbound(index) {
-        const outbound = this.templateSettings.outbounds[index];
+        // Use originalIndex to get the correct outbound from the full array
+        const actualIndex = this.outboundData[index]?.originalIndex ?? index;
+        const outbound = this.templateSettings.outbounds[actualIndex];
         if (!outbound) {
           Vue.prototype.$message.error('{{ i18n "pages.xray.outbound.testError" }}');
           return;
@@ -659,33 +667,33 @@
         }
 
         // Initialize test state for this outbound if not exists
-        if (!this.outboundTestStates[index]) {
-          this.$set(this.outboundTestStates, index, {
+        if (!this.outboundTestStates[actualIndex]) {
+          this.$set(this.outboundTestStates, actualIndex, {
             testing: false,
             result: null
           });
         }
 
         // Set testing state
-        this.$set(this.outboundTestStates[index], 'testing', true);
-        this.$set(this.outboundTestStates[index], 'result', null);
+        this.$set(this.outboundTestStates[actualIndex], 'testing', true);
+        this.$set(this.outboundTestStates[actualIndex], 'result', null);
 
         try {
           const outboundJSON = JSON.stringify(outbound);
           const allOutboundsJSON = JSON.stringify(this.templateSettings.outbounds || []);
-          
+
           const msg = await HttpUtil.post("/panel/xray/testOutbound", {
             outbound: outboundJSON,
             allOutbounds: allOutboundsJSON
           });
 
           // Update test state
-          this.$set(this.outboundTestStates[index], 'testing', false);
+          this.$set(this.outboundTestStates[actualIndex], 'testing', false);
 
           if (msg.success && msg.obj) {
             const result = msg.obj;
-            this.$set(this.outboundTestStates[index], 'result', result);
-            
+            this.$set(this.outboundTestStates[actualIndex], 'result', result);
+
             if (result.success) {
               Vue.prototype.$message.success(
                 `{{ i18n "pages.xray.outbound.testSuccess" }}: ${result.delay}ms (${result.statusCode})`
@@ -696,15 +704,15 @@
               );
             }
           } else {
-            this.$set(this.outboundTestStates[index], 'result', {
+            this.$set(this.outboundTestStates[actualIndex], 'result', {
               success: false,
               error: msg.msg || '{{ i18n "pages.xray.outbound.testError" }}'
             });
             Vue.prototype.$message.error(msg.msg || '{{ i18n "pages.xray.outbound.testError" }}');
           }
         } catch (error) {
-          this.$set(this.outboundTestStates[index], 'testing', false);
-          this.$set(this.outboundTestStates[index], 'result', {
+          this.$set(this.outboundTestStates[actualIndex], 'testing', false);
+          this.$set(this.outboundTestStates[actualIndex], 'result', {
             success: false,
             error: error.message || '{{ i18n "pages.xray.outbound.testError" }}'
           });
@@ -815,7 +823,9 @@
       async resetOutboundTraffic(index) {
         let tag = "-alltags-";
         if (index >= 0) {
-          tag = this.outboundData[index].tag ? this.outboundData[index].tag : ""
+          // Use originalIndex to get the correct outbound from the full array
+          const actualIndex = this.outboundData[index]?.originalIndex ?? index;
+          tag = this.templateSettings.outbounds[actualIndex]?.tag ?? "";
         }
         const msg = await HttpUtil.post("/panel/xray/resetOutboundsTraffic", { tag: tag });
         if (msg.success) {
@@ -1139,7 +1149,7 @@
           data = []
           if (this.templateSettings != null) {
             this.templateSettings.outbounds.forEach((o, index) => {
-              data.push({ 'key': index, ...o });
+              data.push({ 'key': index, 'originalIndex': index, ...o });
             });
           }
           // Filter by search text

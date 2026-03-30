@@ -104,31 +104,31 @@
                     type="primary"
                     shape="circle"
                     icon="thunderbolt"
-                    :loading="outboundTestStates[index] && outboundTestStates[index].testing"
+                    :loading="outboundTestStates[outbound.originalIndex] && outboundTestStates[outbound.originalIndex].testing"
                     @click="testOutbound(index)"
-                    :disabled="(outbound.protocol === 'blackhole' || outbound.tag === 'blocked') || (outboundTestStates[index] && outboundTestStates[index].testing)">
+                    :disabled="(outbound.protocol === 'blackhole' || outbound.tag === 'blocked') || (outboundTestStates[outbound.originalIndex] && outboundTestStates[outbound.originalIndex].testing)">
                 </a-button>
             </a-tooltip>
         </template>
         <template slot="testResult" slot-scope="text, outbound, index">
             <div
-                v-if="outboundTestStates[index] && outboundTestStates[index].result">
-                <a-tag v-if="outboundTestStates[index].result.success"
+                v-if="outboundTestStates[outbound.originalIndex] && outboundTestStates[outbound.originalIndex].result">
+                <a-tag v-if="outboundTestStates[outbound.originalIndex].result.success"
                     color="green">
-                    [[ outboundTestStates[index].result.delay ]]ms
-                    <span v-if="outboundTestStates[index].result.statusCode">
-                        ([[ outboundTestStates[index].result.statusCode
+                    [[ outboundTestStates[outbound.originalIndex].result.delay ]]ms
+                    <span v-if="outboundTestStates[outbound.originalIndex].result.statusCode">
+                        ([[ outboundTestStates[outbound.originalIndex].result.statusCode
                         ]])</span>
                 </a-tag>
                 <a-tooltip v-else
-                    :title="outboundTestStates[index].result.error">
+                    :title="outboundTestStates[outbound.originalIndex].result.error">
                     <a-tag color="red">
                         Failed
                     </a-tag>
                 </a-tooltip>
             </div>
             <span
-                v-else-if="outboundTestStates[index] && outboundTestStates[index].testing">
+                v-else-if="outboundTestStates[outbound.originalIndex] && outboundTestStates[outbound.originalIndex].testing">
                 <a-icon type="loading" />
             </span>
             <span v-else>-</span>
