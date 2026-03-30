@@ -42,13 +42,13 @@ jobs:
 
           echo "Version Tag: $VERSION_TAG"
 
-      - name: Delete old CI releases
-        uses: dev-drprasad/delete-older-releases@v0.3.2
-        with:
-          keep_latest: 5
-          delete_tag_pattern: 'ci-'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Delete old CI releases
+      #   uses: dev-drprasad/delete-older-releases@v0.3.2
+      #   with:
+      #     keep_latest: 5
+      #     delete_tag_pattern: 'ci-'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Continuous Integration Release
         uses: softprops/action-gh-release@v2
