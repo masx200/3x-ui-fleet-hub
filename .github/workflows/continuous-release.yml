@@ -1,0 +1,79 @@
+name: Continuous Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  continuous-release:
+    name: Create Continuous Integration Release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get Git version info
+        id: git-info
+        run: |
+          # Get short commit SHA
+          GIT_SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$GIT_SHORT_SHA" >> $GITHUB_OUTPUT
+
+          # Get commit timestamp
+          GIT_TIMESTAMP=$(git log -1 --format=%ct)
+          GIT_DATE=$(date -d "@$GIT_TIMESTAMP" +%Y%m%d-%H%M%S)
+          echo "timestamp=$GIT_DATE" >> $GITHUB_OUTPUT
+
+          # Get commit count
+          COMMIT_COUNT=$(git rev-list --count HEAD)
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+
+          # Generate version tag
+          VERSION_TAG="ci-${GIT_DATE}-${GIT_SHORT_SHA}"
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+
+          echo "Version Tag: $VERSION_TAG"
+
+      - name: Delete old CI releases
+        uses: dev-drprasad/delete-older-releases@v0.3.2
+        with:
+          keep_latest: 5
+          delete_tag_pattern: 'ci-'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Continuous Integration Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.git-info.outputs.version_tag }}
+          name: Continuous Integration ${{ steps.git-info.outputs.version_tag }}
+          body: |
+            ## 🚀 Continuous Integration Release
+
+            **Version:** `${{ steps.git-info.outputs.version_tag }}`
+
+            ### 📋 Build Information
+            - **Commit:** ${{ steps.git-info.outputs.short_sha }}
+            - **Commit Count:** ${{ steps.git-info.outputs.commit_count }}
+            - **Build Date:** ${{ steps.git-info.outputs.timestamp }}
+
+            ### 📦 Download
+            - Check the [Actions](https://github.com/${{ github.repository }}/actions) page for build artifacts
+            - Or use the [Release](https://github.com/${{ github.repository }}/releases) page for tagged releases
+
+            ---
+
+            <sub>This is an automated CI release. For stable releases, please use official version tags.</sub>
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
