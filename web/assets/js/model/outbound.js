@@ -1318,15 +1318,38 @@ Outbound.VLESSSettings = class extends CommonClass {
     }
 
     static fromJson(json = {}) {
-        if (ObjectUtil.isEmpty(json.address) || ObjectUtil.isEmpty(json.port)) return new Outbound.VLESSSettings();
+        // Try to get address/port from top-level settings or fallback to vnext array
+        let address = json.address;
+        let port = json.port;
+        let id = json.id;
+        let flow = json.flow;
+        let encryption = json.encryption || 'none';
+        let testpre = json.testpre || 0;
+        let testseed = json.testseed && json.testseed.length >= 4 ? json.testseed : [900, 500, 900, 256];
+
+        // Fallback to vnext array if top-level address/port are missing
+        if (ObjectUtil.isEmpty(address) || ObjectUtil.isEmpty(port)) {
+            if (!ObjectUtil.isArrEmpty(json.vnext)) {
+                const v = json.vnext[0];
+                address = address || v.address;
+                port = port || v.port;
+                // Try to get id from top-level or from first user in vnext
+                if (ObjectUtil.isEmpty(id) && !ObjectUtil.isArrEmpty(v.users)) {
+                    const u = v.users[0];
+                    id = u.id;
+                    encryption = u.encryption || encryption;
+                }
+            }
+        }
+
         return new Outbound.VLESSSettings(
-            json.address,
-            json.port,
-            json.id,
-            json.flow,
-            json.encryption,
-            json.testpre || 0,
-            json.testseed && json.testseed.length >= 4 ? json.testseed : [900, 500, 900, 256]
+            address,
+            port,
+            id,
+            flow,
+            encryption,
+            testpre,
+            testseed
         );
     }
 
