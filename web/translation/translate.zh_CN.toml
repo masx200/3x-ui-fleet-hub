@@ -531,6 +531,14 @@
 "testSuccess" = "测试成功"
 "testFailed" = "测试失败"
 "testError" = "测试出站失败"
+"testAll" = "测试全部"
+"testingAll" = "正在测试所有出站..."
+"testComplete" = "批量测试完成"
+"testTotal" = "总数"
+"testSuccessCount" = "成功"
+"testFailedCount" = "失败"
+"testTime" = "耗时"
+"stopTest" = "停止测试"
 
 [pages.xray.balancer]
 "addBalancer" = "添加负载均衡"

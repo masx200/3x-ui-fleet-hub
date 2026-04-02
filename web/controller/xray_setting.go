@@ -32,12 +32,15 @@ func (a *XraySettingController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
 	g.GET("/getOutboundsTraffic", a.getOutboundsTraffic)
 	g.GET("/getXrayResult", a.getXrayResult)
+	g.GET("/getBatchTestTask/:taskId", a.getBatchTestTask)
 
 	g.POST("/", a.getXraySetting)
 	g.POST("/warp/:action", a.warp)
 	g.POST("/update", a.updateSetting)
 	g.POST("/resetOutboundsTraffic", a.resetOutboundsTraffic)
 	g.POST("/testOutbound", a.testOutbound)
+	g.POST("/testAllOutbounds", a.testAllOutbounds)
+	g.POST("/cancelBatchTestTask", a.cancelBatchTestTask)
 }
 
 // getXraySetting retrieves the Xray configuration template, inbound tags, and outbound test URL.
@@ -165,4 +168,55 @@ func (a *XraySettingController) testOutbound(c *gin.Context) {
 	}
 
 	jsonObj(c, result, nil)
+}
+
+// testAllOutbounds starts an async batch test task and returns task ID
+func (a *XraySettingController) testAllOutbounds(c *gin.Context) {
+	allOutboundsJSON := c.PostForm("allOutbounds")
+	if allOutboundsJSON == "" {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), common.NewError("allOutbounds parameter is required"))
+		return
+	}
+
+	taskID, err := a.OutboundService.StartAsyncTestAllOutbounds(allOutboundsJSON)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+
+	jsonObj(c, map[string]string{"taskId": taskID}, nil)
+}
+
+// getBatchTestTask retrieves the status of a batch test task
+func (a *XraySettingController) getBatchTestTask(c *gin.Context) {
+	taskID := c.Param("taskId")
+	if taskID == "" {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), common.NewError("taskId parameter is required"))
+		return
+	}
+
+	task, exists := a.OutboundService.GetBatchTestTask(taskID)
+	if !exists {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), common.NewError("Task not found"))
+		return
+	}
+
+	jsonObj(c, task, nil)
+}
+
+// cancelBatchTestTask cancels a running batch test task
+func (a *XraySettingController) cancelBatchTestTask(c *gin.Context) {
+	taskID := c.PostForm("taskId")
+	if taskID == "" {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), common.NewError("taskId parameter is required"))
+		return
+	}
+
+	success := a.OutboundService.CancelBatchTestTask(taskID)
+	if !success {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), common.NewError("Failed to cancel task"))
+		return
+	}
+
+	jsonObj(c, map[string]bool{"cancelled": true}, nil)
 }

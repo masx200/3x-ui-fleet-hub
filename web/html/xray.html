@@ -258,6 +258,18 @@
       inboundTags: [],
       outboundsTraffic: [],
       outboundTestStates: {}, // Track testing state and results for each outbound
+      // Batch test state
+      batchTesting: false,
+      batchTaskId: null,
+      batchTestProgress: {
+        current: 0,
+        total: 0,
+        message: ''
+      },
+      batchTestProgressPercent: 0,
+      batchTestStatus: 'active',
+      batchTestResults: null,
+      batchPollingTimer: null,
       outboundPagination: {
         current: 1,
         pageSize: 50,
@@ -719,6 +731,163 @@
           Vue.prototype.$message.error('{{ i18n "pages.xray.outbound.testError" }}: ' + error.message);
         }
       },
+      async testAllOutbounds() {
+        if (!this.templateSettings.outbounds || this.templateSettings.outbounds.length === 0) {
+          Vue.prototype.$message.warning('No outbounds to test');
+          return;
+        }
+
+        const testableOutbounds = this.templateSettings.outbounds.filter(outbound =>
+          outbound.protocol !== 'blackhole' && outbound.tag !== 'blocked'
+        );
+
+        if (testableOutbounds.length === 0) {
+          Vue.prototype.$message.warning('No testable outbounds found');
+          return;
+        }
+
+        // Confirm for large number of outbounds
+        if (testableOutbounds.length > 10) {
+          const confirmed = await this.$confirm({
+            title: 'Confirm batch test',
+            content: `You are about to test ${testableOutbounds.length} outbounds. This may take several minutes. Continue?`,
+            okText: 'Confirm',
+            cancelText: 'Cancel',
+          });
+          if (!confirmed) return;
+        }
+
+        // Clear any existing polling timer
+        if (this.batchPollingTimer) {
+          clearInterval(this.batchPollingTimer);
+          this.batchPollingTimer = null;
+        }
+
+        this.batchTesting = true;
+        this.batchTestProgress = {
+          current: 0,
+          total: testableOutbounds.length,
+          message: 'Starting batch test...'
+        };
+        this.batchTestProgressPercent = 0;
+        this.batchTestStatus = 'active';
+        this.batchTestResults = null;
+        this.outboundTestStates = {};
+
+        try {
+          const allOutboundsJSON = JSON.stringify(this.templateSettings.outbounds || []);
+
+          const msg = await HttpUtil.post("/panel/xray/testAllOutbounds", {
+            allOutbounds: allOutboundsJSON
+          });
+
+          if (!msg.success) {
+            throw new Error(msg.msg || 'Failed to start batch test');
+          }
+
+          this.batchTaskId = msg.obj.taskId;
+          Vue.prototype.$message.info('Batch test task started');
+
+          // Start polling for task status every 2 seconds
+          this.batchPollingTimer = setInterval(() => {
+            this.pollBatchTestStatus();
+          }, 2000);
+
+          // Initial poll
+          this.pollBatchTestStatus();
+
+        } catch (error) {
+          Vue.prototype.$message.error('Failed to start batch test: ' + error.message);
+          this.batchTestStatus = 'exception';
+          this.batchTesting = false;
+        }
+      },
+      async pollBatchTestStatus() {
+        if (!this.batchTaskId) return;
+
+        try {
+          const msg = await HttpUtil.get(`/panel/xray/getBatchTestTask/${this.batchTaskId}`);
+
+          if (!msg.success) {
+            throw new Error(msg.msg || 'Failed to get task status');
+          }
+
+          const task = msg.obj;
+
+          // Update progress
+          this.batchTestProgressPercent = task.progress;
+          this.batchTestProgress.current = task.current;
+          this.batchTestProgress.total = task.total;
+
+          // Update test states from results
+          if (task.results && Array.isArray(task.results)) {
+            task.results.forEach((testResult) => {
+              const actualIndex = testResult.index;
+              this.$set(this.outboundTestStates, actualIndex, {
+                testing: false,
+                result: {
+                  success: testResult.success,
+                  delay: testResult.delay,
+                  error: testResult.error,
+                  statusCode: testResult.statusCode
+                }
+              });
+            });
+          }
+
+          // Check if task is complete
+          if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'failed') {
+            this.batchTestStatus = task.status === 'completed' ? 'success' : 'exception';
+            this.batchTestResults = {
+              total: task.total,
+              tested: task.current,
+              successCount: task.successCount,
+              failedCount: task.failedCount,
+              totalTime: task.totalTime,
+              results: task.results
+            };
+            this.batchTesting = false;
+
+            if (this.batchPollingTimer) {
+              clearInterval(this.batchPollingTimer);
+              this.batchPollingTimer = null;
+            }
+
+            if (task.status === 'completed') {
+              Vue.prototype.$message.success(`Batch test completed: ${task.successCount} succeeded, ${task.failedCount} failed. Time: ${task.totalTime}ms`);
+            } else if (task.status === 'cancelled') {
+              Vue.prototype.$message.info('Batch test was cancelled');
+            } else {
+              Vue.prototype.$message.error('Batch test failed');
+            }
+          }
+        } catch (error) {
+          console.error('Error polling task status:', error);
+        }
+      },
+      async stopBatchTest() {
+        if (!this.batchTaskId) return;
+
+        try {
+          const msg = await HttpUtil.post("/panel/xray/cancelBatchTestTask", {
+            taskId: this.batchTaskId
+          });
+
+          if (msg.success) {
+            Vue.prototype.$message.info('Cancelling batch test...');
+            // The polling will detect the cancellation
+          } else {
+            Vue.prototype.$message.error('Failed to cancel batch test');
+          }
+        } catch (error) {
+          Vue.prototype.$message.error('Failed to cancel batch test: ' + error.message);
+        }
+      },
+      clearBatchTestResults() {
+        this.batchTestResults = null;
+        this.batchTaskId = null;
+        this.batchTestResults = null;
+      },
       addReverse() {
         reverseModal.show({
           title: '{{ i18n "pages.xray.outbound.addReverse"}}',
@@ -1124,6 +1293,13 @@
       while (true) {
         await PromiseUtil.sleep(800);
         this.saveBtnDisable = this.oldXraySetting === this.xraySetting && this.oldOutboundTestUrl === this.outboundTestUrl;
+      }
+    },
+    beforeDestroy() {
+      // Clean up polling timer when component is destroyed
+      if (this.batchPollingTimer) {
+        clearInterval(this.batchPollingTimer);
+        this.batchPollingTimer = null;
       }
     },
     computed: {
