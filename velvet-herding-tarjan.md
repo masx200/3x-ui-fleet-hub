@@ -2,7 +2,7 @@
 
 ## Context
 
-当前项目的前端资源（JS/CSS）在 `web/assets` 目录中，总计 41 个文件约 8.3MB。部分文件已压缩，部分未压缩（如 `inbound.js` 82KB）。资源在编译时通过 `//go:embed` 嵌入到 Go 二进制文件中，使用查询参数 `?{{ .cur_ver }}` 实现缓存管理。
+当前项目的前端资源（JS/CSS）在 `web/src/assets` 目录中，总计 41 个文件约 8.3MB。部分文件已压缩，部分未压缩（如 `inbound.js` 82KB）。资源在编译时通过 `//go:embed` 嵌入到 Go 二进制文件中，使用查询参数 `?{{ .cur_ver }}` 实现缓存管理。
 
 **问题**：
 - 文件体积较大，影响加载速度
@@ -21,14 +21,21 @@
 
 ```
 web/
-├── assets/                      # 源文件（保留不变）
-├── src/                         # 构建时临时复制 assets 内容
-├── build/                       # 构建输出
-│   ├── assets/                  # 压缩后的文件
+├── src/                         # 源文件目录（不参与构建）
+│   ├── assets/                  # 前端资源源文件
+│   │   ├── js/
+│   │   │   └── inbound.js
+│   │   └── css/
+│   │       └── custom.css
+│   └── html/                    # HTML 模板文件源
+├── build/                       # 构建输出目录
+│   ├── assets/                  # 压缩后的资源文件
 │   │   ├── js/
 │   │   │   └── inbound.min.a1b2c3d4.js
 │   │   └── css/
 │   │       └── custom.min.e5f6g7h8.css
+│   ├── html/                    # 更新后的 HTML 模板
+│   │   └── **/*.html            # 资源引用已更新为带哈希版本
 │   └── manifest.json            # 资源映射清单
 ├── scripts/                     # 构建脚本
 │   ├── build.js                 # 主构建脚本
@@ -49,6 +56,7 @@ web/
   "name": "3x-ui-fleet-hub-frontend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "node scripts/build.js",
     "clean": "node scripts/build.js --clean"
@@ -64,9 +72,15 @@ web/
 esbuild 配置和入口点定义：
 
 ```javascript
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// ES modules 中获取 __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 生成内容哈希
 function generateHash(content) {
@@ -75,7 +89,7 @@ function generateHash(content) {
 
 // 获取所有需要处理的 JS 文件
 function getJSEntries() {
-  const jsDir = path.join(__dirname, 'src');
+  const jsDir = path.join(__dirname, 'src/assets');
   const entries = {};
 
   function walkDir(dir, baseDir = '') {
@@ -137,7 +151,7 @@ function getJSEntries() {
 
 // 获取所有需要处理的 CSS 文件
 function getCSSEntries() {
-  const cssDir = path.join(__dirname, 'src');
+  const cssDir = path.join(__dirname, 'src/assets');
   const entries = {};
 
   function walkDir(dir, baseDir = '') {
@@ -169,17 +183,18 @@ function getCopyFiles() {
   ];
 }
 
-module.exports = {
+export default {
   generateHash,
   getJSEntries,
   getCSSEntries,
   getCopyFiles,
   paths: {
     root: path.join(__dirname),
-    assets: path.join(__dirname, 'assets'),
-    src: path.join(__dirname, 'src'),
+    srcAssets: path.join(__dirname, 'src/assets'),
+    srcHtml: path.join(__dirname, 'src/html'),
+    buildAssets: path.join(__dirname, 'build/assets'),
+    buildHtml: path.join(__dirname, 'build/html'),
     build: path.join(__dirname, 'build'),
-    html: path.join(__dirname, 'html'),
   },
 };
 ```
@@ -191,17 +206,17 @@ module.exports = {
 ```javascript
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const esbuild = require('esbuild');
-const config = require('../esbuild.config.js');
+import fs from 'fs';
+import path from 'path';
+import esbuild from 'esbuild';
+import config from '../esbuild.config.js';
 
 const args = process.argv.slice(2);
 const isClean = args.includes('--clean');
 
 // 清理构建目录
 function clean() {
-  const dirsToClean = [config.paths.src, config.paths.build];
+  const dirsToClean = [config.paths.build];
   for (const dir of dirsToClean) {
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -210,18 +225,11 @@ function clean() {
   console.log('✓ Cleaned build directories');
 }
 
-// 复制 assets 到 src
-function copyToSrc() {
-  console.log('→ Copying assets to src...');
-  copyDir(config.paths.assets, config.paths.src);
-  console.log('✓ Copied assets to src');
-}
-
 // 压缩 JS 文件
 async function buildJS(manifest) {
   console.log('→ Building JS files...');
 
-  const buildDir = path.join(config.paths.build, 'assets');
+  const buildDir = config.paths.buildAssets;
   if (!fs.existsSync(buildDir)) {
     fs.mkdirSync(buildDir, { recursive: true });
   }
@@ -273,7 +281,7 @@ async function buildJS(manifest) {
 async function buildCSS(manifest) {
   console.log('→ Building CSS files...');
 
-  const buildDir = path.join(config.paths.build, 'assets');
+  const buildDir = config.paths.buildAssets;
   const entries = config.getCSSEntries();
 
   for (const [name, entry] of Object.entries(entries)) {
@@ -318,11 +326,11 @@ async function buildCSS(manifest) {
 function copyStaticFiles() {
   console.log('→ Copying static files...');
 
-  const buildDir = path.join(config.paths.build, 'assets');
+  const buildDir = config.paths.buildAssets;
   const files = config.getCopyFiles();
 
   for (const file of files) {
-    const srcPath = path.join(config.paths.src, file);
+    const srcPath = path.join(config.paths.srcAssets, file);
     const destPath = path.join(buildDir, file);
 
     if (fs.existsSync(srcPath)) {
@@ -349,22 +357,22 @@ function generateManifest(manifest) {
   console.log(`  Total entries: ${Object.keys(manifest).length}`);
 }
 
-// 复制 build 到 assets
-function copyToAssets() {
-  console.log('→ Copying build to assets...');
+// 复制 src/html 到 build/html（保留原始结构）
+function copyHtmlToBuild() {
+  console.log('→ Copying HTML templates to build...');
 
-  const buildAssets = path.join(config.paths.build, 'assets');
-  const assetsDir = config.paths.assets;
+  const srcHtmlDir = config.paths.srcHtml;
+  const buildHtmlDir = config.paths.buildHtml;
 
-  // 删除原 assets 目录
-  if (fs.existsSync(assetsDir)) {
-    fs.rmSync(assetsDir, { recursive: true, force: true });
+  // 删除原 build/html 目录
+  if (fs.existsSync(buildHtmlDir)) {
+    fs.rmSync(buildHtmlDir, { recursive: true, force: true });
   }
 
-  // 复制 build/assets 到 assets
-  copyDir(buildAssets, assetsDir);
+  // 复制 src/html 到 build/html
+  copyDir(srcHtmlDir, buildHtmlDir);
 
-  console.log('✓ Copied build to assets');
+  console.log('✓ Copied HTML templates to build');
 }
 
 function copyDir(src, dest) {
@@ -401,12 +409,11 @@ async function build() {
 
   try {
     clean();
-    copyToSrc();
     await buildJS(manifest);
     await buildCSS(manifest);
     copyStaticFiles();
     generateManifest(manifest);
-    copyToAssets();
+    copyHtmlToBuild();
 
     console.log('\n' + '='.repeat(50));
     console.log('✓ Build completed successfully!');
@@ -428,9 +435,9 @@ HTML 模板更新脚本：
 ```javascript
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const config = require('../esbuild.config.js');
+import fs from 'fs';
+import path from 'path';
+import config from '../esbuild.config.js';
 
 // 读取 manifest
 const manifestPath = path.join(config.paths.build, 'manifest.json');
@@ -441,9 +448,9 @@ if (!fs.existsSync(manifestPath)) {
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
 
-// 获取所有 HTML 文件
+// 获取所有 HTML 文件（从 build/html）
 function getHTMLFiles() {
-  const htmlDir = config.paths.html;
+  const htmlDir = config.paths.buildHtml;
   const files = [];
 
   function walkDir(dir) {
@@ -462,7 +469,7 @@ function getHTMLFiles() {
   return files;
 }
 
-console.log('→ Updating HTML templates...\n');
+console.log('→ Updating HTML templates in build/html...\n');
 
 const htmlFiles = getHTMLFiles();
 let updatedCount = 0;
@@ -484,7 +491,7 @@ for (const filePath of htmlFiles) {
     if (regex.test(content)) {
       content = content.replace(regex, newPattern + '?{{ .cur_ver }}');
       hasChanges = true;
-      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.html, filePath)}`);
+      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.buildHtml, filePath)}`);
     }
   }
 
@@ -500,7 +507,7 @@ for (const filePath of htmlFiles) {
     if (regex.test(content)) {
       content = content.replace(regex, newPattern + '?{{ .cur_ver }}');
       hasChanges = true;
-      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.html, filePath)}`);
+      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.buildHtml, filePath)}`);
     }
   }
 
@@ -510,7 +517,7 @@ for (const filePath of htmlFiles) {
   }
 }
 
-console.log(`\n✓ Updated ${updatedCount} HTML file(s)`);
+console.log(`\n✓ Updated ${updatedCount} HTML file(s) in build/html`);
 ```
 
 #### 2.5 Makefile
@@ -550,7 +557,6 @@ build: frontend go-build
 clean:
 	@echo "→ Cleaning build artifacts..."
 	rm -rf web/build
-	rm -rf web/src
 	rm -rf web/node_modules
 	rm -rf bin
 ```
@@ -558,15 +564,14 @@ clean:
 ### 3. 构建流程
 
 1. **执行 `make build`** 或 **`make frontend`**
-2. 清理 `web/build` 和 `web/src` 目录
-3. 复制 `web/assets` 到 `web/src`
-4. 使用 esbuild 压缩所有 JS 文件（包括第三方库）
-5. 使用 esbuild 压缩所有 CSS 文件
-6. 复制静态文件（字体等）
-7. 生成 `manifest.json` 资源映射
-8. 复制 `web/build/assets` 到 `web/assets`（替换原文件）
-9. 更新所有 HTML 模板中的资源引用路径
-10. 编译 Go 程序（自动嵌入新的 assets）
+2. 清理 `web/build` 目录
+3. 使用 esbuild 压缩所有 JS 文件（包括第三方库）→ 输出到 `web/build/assets/js/`
+4. 使用 esbuild 压缩所有 CSS 文件 → 输出到 `web/build/assets/css/`
+5. 复制静态文件（字体等）→ 输出到 `web/build/assets/`
+6. 生成 `web/build/manifest.json` 资源映射
+7. 复制 `web/src/html` 到 `web/build/html`
+8. 更新 `web/build/html` 中所有 HTML 模板的资源引用路径
+9. 编译 Go 程序（嵌入 `web/build` 目录的内容）
 
 ### 4. 关键实现细节
 
@@ -588,8 +593,10 @@ crypto.createHash('sha512').update(content).digest('hex')
 - 只替换文件名部分，不改变路径结构
 
 #### 4.4 与 Go 集成
-- `//go:embed assets` 在 [web/web.go:37](web/web.go#L37) 自动嵌入新文件
-- 无需修改 Go 代码
+- 需要更新 `web/web.go` 中的 embed 路径：
+  - `//go:embed build/assets` - 嵌入压缩后的资源文件
+  - `//go:embed build/html` - 嵌入更新后的 HTML 模板
+- 或者保持原结构，在构建后将 `web/build` 内容复制到 `web/assets` 和 `web/html`
 - 构建顺序：先前端，后 Go
 
 ### 5. 预期效果
@@ -620,28 +627,19 @@ make clean
 ### 7. 故障排查
 
 **问题**: esbuild 构建失败
-- 检查文件语法：`node -c web/src/js/file.js`
+- 检查文件语法：`node -c web/src/assets/js/file.js`
 - 清理并重新构建：`make clean && make build`
 
 **问题**: HTML 更新不生效
-- 检查 manifest.json 是否生成
+- 检查 `web/build/manifest.json` 是否生成
+- 检查 `web/build/html` 目录是否存在
 - 手动运行：`cd web && node scripts/update-html.js`
 
 **问题**: Go 嵌入资源为空
-- 检查 assets 目录：`ls -la web/assets/`
+- 检查构建输出：`ls -la web/build/`
+- 检查资源文件：`ls -la web/build/assets/`
+- 检查 HTML 文件：`ls -la web/build/html/`
 - 确认构建成功完成
-
-### 8. 回滚策略
-
-如果构建出现问题：
-```bash
-# 使用 Git 恢复
-git checkout web/assets
-git checkout web/html
-
-# 重新构建
-make clean && make build
-```
 
 ## 关键文件清单
 
@@ -652,9 +650,16 @@ make clean && make build
 - **web/scripts/build.js** - 主构建脚本（新建）
 - **web/scripts/update-html.js** - HTML 更新脚本（新建）
 - **Makefile** - 构建流程集成（新建）
-- **web/html/**/*.html** - HTML 模板（自动更新）
 
-**不修改的文件**：
-- web/web.go - embed 指令自动适配
-- main.go - 无需修改
-- 所有 Go 源代码 - 无需修改
+**源文件（不修改）**：
+- **web/src/assets/** - 前端资源源文件（JS/CSS/字体等）
+- **web/src/html/** - HTML 模板源文件
+
+**构建输出（自动生成）**：
+- **web/build/assets/** - 压缩后的资源文件（带内容哈希）
+- **web/build/html/** - 更新后的 HTML 模板（资源引用已更新）
+- **web/build/manifest.json** - 资源映射清单
+
+**Go 集成（需要修改）**：
+- **web/web.go** - 需要更新 embed 路径为 `build/assets` 和 `build/html`
+- 或在 Makefile 中添加复制步骤，将 build 内容复制回 assets 和 html 目录
