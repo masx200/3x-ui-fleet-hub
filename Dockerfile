@@ -9,9 +9,16 @@ RUN apk --no-cache --update add \
   build-base \
   gcc \
   curl \
-  unzip
+  unzip \
+  nodejs \
+  npm
 
 COPY . .
+
+# Build frontend with esbuild
+WORKDIR /app/web
+RUN npm install && npm run build
+WORKDIR /app
 
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
