@@ -40,6 +40,12 @@ var assetsFS embed.FS
 //go:embed html/*
 var htmlFS embed.FS
 
+//go:embed build/assets
+var buildAssetsFS embed.FS
+
+//go:embed build/html/*
+var buildHtmlFS embed.FS
+
 //go:embed translation/*
 var i18nFS embed.FS
 
@@ -169,6 +175,61 @@ func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, 
 	return t, nil
 }
 
+// getHtmlTemplateFromBuild parses embedded HTML templates from build directory
+func (s *Server) getHtmlTemplateFromBuild(funcMap template.FuncMap) (*template.Template, error) {
+	t := template.New("").Funcs(funcMap)
+
+	// Use local build directory for development
+	if _, err := os.Stat("web/build/html"); err == nil {
+		files, err := s.getHtmlFilesFromBuild()
+		if err != nil {
+			return nil, err
+		}
+		return t.ParseFiles(files...)
+	}
+
+	// Fallback to embedded filesystem (will be used after build completes)
+	err := fs.WalkDir(htmlFS, "html", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			newT, err := t.ParseFS(htmlFS, path+"/*.html")
+			if err != nil {
+				// ignore
+				return nil
+			}
+			t = newT
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+// getHtmlFilesFromBuild walks the local `web/build/html` directory and returns a list of template file paths
+func (s *Server) getHtmlFilesFromBuild() ([]string, error) {
+	files := make([]string, 0)
+	dir, _ := os.Getwd()
+	err := fs.WalkDir(os.DirFS(dir), "web/build/html", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
 // initRouter initializes Gin, registers middleware, templates, static
 // assets, controllers and returns the configured engine.
 func (s *Server) initRouter() (*gin.Engine, error) {
@@ -250,15 +311,26 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 		}
 		// Use the registered func map with the loaded templates
 		engine.LoadHTMLFiles(files...)
-		engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/assets")))
+		engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/src/assets")))
 	} else {
-		// for production
-		template, err := s.getHtmlTemplate(funcMap)
-		if err != nil {
-			return nil, err
+		// for production - try build directory first, fallback to assets/html
+		if _, err := os.Stat("web/build"); err == nil {
+			// Use optimized build assets
+			template, err := s.getHtmlTemplateFromBuild(funcMap)
+			if err != nil {
+				return nil, err
+			}
+			engine.SetHTMLTemplate(template)
+			engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/build/assets")))
+		} else {
+			// Use original embedded assets
+			template, err := s.getHtmlTemplate(funcMap)
+			if err != nil {
+				return nil, err
+			}
+			engine.SetHTMLTemplate(template)
+			engine.StaticFS(basePath+"assets", http.FS(&wrapAssetsFS{FS: assetsFS}))
 		}
-		engine.SetHTMLTemplate(template)
-		engine.StaticFS(basePath+"assets", http.FS(&wrapAssetsFS{FS: assetsFS}))
 	}
 
 	// Apply the redirect middleware (`/xui` to `/panel`)
