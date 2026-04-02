@@ -874,8 +874,17 @@
           });
 
           if (msg.success) {
-            Vue.prototype.$message.info('Cancelling batch test...');
-            // The polling will detect the cancellation
+            // Immediately hide the progress display
+            this.batchTesting = false;
+            this.batchTestStatus = 'exception';
+
+            // Stop polling
+            if (this.batchPollingTimer) {
+              clearInterval(this.batchPollingTimer);
+              this.batchPollingTimer = null;
+            }
+
+            Vue.prototype.$message.info('Batch test was cancelled');
           } else {
             Vue.prototype.$message.error('Failed to cancel batch test');
           }
