@@ -36,7 +36,7 @@ async function buildJS(manifest) {
       const result = await esbuild.build({
         entryPoints: [entry],
         bundle: false,
-        minify: true,
+        minify: true,platform: 'browser',
         outfile: path.join(buildDir, name),
         target: 'es2015',
         write: false,
