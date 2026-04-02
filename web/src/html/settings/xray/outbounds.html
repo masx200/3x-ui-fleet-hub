@@ -55,9 +55,14 @@
         <template slot="message">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div style="flex: 1;">
-                    <span>{{ i18n "pages.xray.outbound.testingAll" }}</span>
+                    <span v-if="batchTestProgressPercent < 100">{{ i18n "pages.xray.outbound.testingAll" }}</span>
+                    <span v-else style="color: #52c41a; font-weight: bold;">{{ i18n "pages.xray.outbound.testComplete" }}</span>
                     <div style="margin-top: 8px; font-size: 12px; color: #666;">
                         <span>Task ID: [[ batchTaskId ]]</span>
+                        <span v-if="batchTestProgressPercent === 100" style="margin-left: 16px;">
+                            <a-tag color="green">[[ getBatchTestSuccessCount() ]] {{ i18n "pages.xray.outbound.testSuccessCount" }}</a-tag>
+                            <a-tag color="red">[[ getBatchTestFailedCount() ]] {{ i18n "pages.xray.outbound.testFailedCount" }}</a-tag>
+                        </span>
                     </div>
                     <a-progress
                         :percent="batchTestProgressPercent"
@@ -66,15 +71,18 @@
                         style="margin-top: 8px;" />
                 </div>
                 <a-button
+                    v-if="batchTestProgressPercent < 100"
                     type="danger"
                     size="small"
                     @click="stopBatchTest"
-                  style="height: 30px;width: 80px;margin-left: 16px;"
-
-                    class="ant-btn ant-btn-danger ant-btn-sm" >
+                    style="height: 30px;width: 80px;margin-left: 16px;"
+                    class="ant-btn ant-btn-danger ant-btn-sm">
                     {{ i18n "pages.xray.outbound.stopTest" }}
-                    
                 </a-button>
+                <span v-else
+                    style="margin-left: 16px; height: 30px; line-height: 30px; color: #52c41a; font-weight: bold;">
+                    ✓ {{ i18n "pages.xray.outbound.testComplete" }}
+                </span>
             </div>
         </template>
     </a-alert>

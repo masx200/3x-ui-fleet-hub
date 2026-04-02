@@ -888,6 +888,24 @@
         this.batchTaskId = null;
         this.batchTestResults = null;
       },
+      getBatchTestSuccessCount() {
+        let count = 0;
+        for (const key in this.outboundTestStates) {
+          if (this.outboundTestStates[key].result && this.outboundTestStates[key].result.success) {
+            count++;
+          }
+        }
+        return count;
+      },
+      getBatchTestFailedCount() {
+        let count = 0;
+        for (const key in this.outboundTestStates) {
+          if (this.outboundTestStates[key].result && !this.outboundTestStates[key].result.success) {
+            count++;
+          }
+        }
+        return count;
+      },
       addReverse() {
         reverseModal.show({
           title: '{{ i18n "pages.xray.outbound.addReverse"}}',
