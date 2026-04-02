@@ -9,6 +9,15 @@
                 </a-button>
                 <a-button type="primary" icon="cloud"
                     @click="showWarp()">WARP</a-button>
+                <a-button
+                    type="primary"
+                    icon="thunderbolt"
+                    @click="testAllOutbounds"
+                    :loading="batchTesting"
+                    :disabled="batchTesting">
+                    <span v-if="!batchTesting">{{ i18n "pages.xray.outbound.testAll" }}</span>
+                    <span v-else>[[ batchTestProgressPercent ]]%</span>
+                </a-button>
             </a-space>
         </a-col>
         <a-col :xs="12" :sm="12" :lg="12" :style="{ textAlign: 'right' }">
@@ -38,6 +47,52 @@
             </a-space>
         </a-col>
     </a-row>
+    <a-alert
+        v-if="batchTesting"
+        type="info"
+        show-icon
+        style="margin-bottom: 16px;">
+        <template slot="message">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <span>{{ i18n "pages.xray.outbound.testingAll" }}</span>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        <span>Task ID: [[ batchTaskId ]]</span>
+                    </div>
+                    <a-progress
+                        :percent="batchTestProgressPercent"
+                        :status="batchTestStatus"
+                        :format="() => `${batchTestProgress.current}/${batchTestProgress.total} (${batchTestProgressPercent}%)`"
+                        style="margin-top: 8px;" />
+                </div>
+                <a-button
+                    type="danger"
+                    size="small"
+                    @click="stopBatchTest"
+                    style="margin-left: 16px;">
+                    <a-icon type="stop" />
+                    <span v-if="!isMobile">{{ i18n "pages.xray.outbound.stopTest" }}</span>
+                </a-button>
+            </div>
+        </template>
+    </a-alert>
+    <a-alert
+        v-if="batchTestResults"
+        type="success"
+        show-icon
+        closable
+        @close="clearBatchTestResults"
+        style="margin-bottom: 16px;">
+        <template slot="message">
+            <div>{{ i18n "pages.xray.outbound.testComplete" }}</div>
+            <a-statistic-group style="margin-top: 8px;">
+                <a-statistic :title="i18n('pages.xray.outbound.testTotal')" :value="batchTestResults.total" />
+                <a-statistic :title="i18n('pages.xray.outbound.testSuccessCount')" :value="batchTestResults.successCount" :value-style="{ color: '#52c41a' }" />
+                <a-statistic :title="i18n('pages.xray.outbound.testFailedCount')" :value="batchTestResults.failedCount" :value-style="{ color: '#f5222d' }" />
+                <a-statistic :title="i18n('pages.xray.outbound.testTime')" :value="batchTestResults.totalTime" suffix="ms" />
+            </a-statistic-group>
+        </template>
+    </a-alert>
     <a-table :columns="outboundColumns" bordered :row-key="r => r.key"
         :data-source="outboundData"
         :scroll="isMobile ? {} : { x: 800 }" :pagination="outboundPagination"

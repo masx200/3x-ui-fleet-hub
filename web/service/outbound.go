@@ -29,6 +29,135 @@ type OutboundService struct{}
 // testSemaphore limits concurrent outbound tests to prevent resource exhaustion.
 var testSemaphore sync.Mutex
 
+// BatchTestTask represents an async batch test task
+type BatchTestTask struct {
+	ID              string                   `json:"id"`
+	Status          string                   `json:"status"` // running, completed, cancelled, failed
+	Progress        int                      `json:"progress"`
+	Total           int                      `json:"total"`
+	Current         int                      `json:"current"`
+	Results         []*TestAllOutboundResult `json:"results"`
+	StartTime       time.Time                `json:"startTime"`
+	EndTime         *time.Time               `json:"endTime,omitempty"`
+	TotalTime       int64                    `json:"totalTime"`
+	Cancel          chan struct{}            `json:"-"`
+	SuccessCount    int                      `json:"successCount"`
+	FailedCount     int                      `json:"failedCount"`
+}
+
+// BatchTestTaskManager manages async batch test tasks
+type BatchTestTaskManager struct {
+	tasks map[string]*BatchTestTask
+	mu    sync.RWMutex
+}
+
+var batchTestTaskManager = &BatchTestTaskManager{
+	tasks: make(map[string]*BatchTestTask),
+}
+
+// CreateTask creates a new batch test task
+func (m *BatchTestTaskManager) CreateTask(total int) *BatchTestTask {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	task := &BatchTestTask{
+		ID:        fmt.Sprintf("task-%d", time.Now().UnixNano()),
+		Status:    "running",
+		Progress:  0,
+		Total:     total,
+		Current:   0,
+		Results:   make([]*TestAllOutboundResult, 0, total),
+		StartTime: time.Now(),
+		Cancel:    make(chan struct{}),
+	}
+
+	m.tasks[task.ID] = task
+	return task
+}
+
+// GetTask retrieves a task by ID
+func (m *BatchTestTaskManager) GetTask(id string) (*BatchTestTask, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	task, exists := m.tasks[id]
+	return task, exists
+}
+
+// UpdateTask updates a task's progress
+func (m *BatchTestTaskManager) UpdateTask(id string, current int, result *TestAllOutboundResult) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if task, exists := m.tasks[id]; exists {
+		task.Current = current
+		task.Progress = int(float64(current) / float64(task.Total) * 100)
+		if result != nil {
+			task.Results = append(task.Results, result)
+			if result.Success {
+				task.SuccessCount++
+			} else if result.Error == "" || !contains(result.Error, "Skipped") {
+				task.FailedCount++
+			}
+		}
+	}
+}
+
+// CompleteTask marks a task as completed
+func (m *BatchTestTaskManager) CompleteTask(id string, status string, totalTime int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if task, exists := m.tasks[id]; exists {
+		task.Status = status
+		task.Progress = 100
+		task.TotalTime = totalTime
+		endTime := time.Now()
+		task.EndTime = &endTime
+	}
+}
+
+// CancelTask cancels a running task
+func (m *BatchTestTaskManager) CancelTask(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if task, exists := m.tasks[id]; exists && task.Status == "running" {
+		close(task.Cancel)
+		task.Status = "cancelled"
+		endTime := time.Now()
+		task.EndTime = &endTime
+		return true
+	}
+	return false
+}
+
+// CleanOldTasks removes tasks older than 1 hour
+func (m *BatchTestTaskManager) CleanOldTasks() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	cutoff := time.Now().Add(-time.Hour)
+	for id, task := range m.tasks {
+		if !task.EndTime.IsZero() && task.EndTime.Before(cutoff) {
+			delete(m.tasks, id)
+		}
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsMiddle(s, substr)))
+}
+
+func containsMiddle(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *OutboundService) AddTraffic(traffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) (error, bool) {
 	var err error
 	db := database.GetDB()
@@ -123,6 +252,24 @@ type TestOutboundResult struct {
 	Delay      int64  `json:"delay"` // Delay in milliseconds
 	Error      string `json:"error,omitempty"`
 	StatusCode int    `json:"statusCode,omitempty"`
+}
+
+// TestAllOutboundResult represents the result of testing a single outbound in batch mode
+type TestAllOutboundResult struct {
+	Index      int    `json:"index"`
+	Tag        string `json:"tag"`
+	Success    bool   `json:"success"`
+	Delay      int64  `json:"delay"`
+	Error      string `json:"error,omitempty"`
+	StatusCode int    `json:"statusCode,omitempty"`
+}
+
+// TestAllOutboundsResult represents the result of testing all outbounds
+type TestAllOutboundsResult struct {
+	Total     int                      `json:"total"`
+	Tested    int                      `json:"tested"`
+	Results   []*TestAllOutboundResult `json:"results"`
+	TotalTime int64                    `json:"totalTime"`
 }
 
 // TestOutbound tests an outbound by creating a temporary xray instance and measuring response time.
@@ -419,4 +566,158 @@ func createTestConfigPath() (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+// TestAllOutbounds tests multiple outbounds sequentially and returns comprehensive results
+func (s *OutboundService) TestAllOutbounds(allOutboundsJSON string) (*TestAllOutboundsResult, error) {
+	startTime := time.Now()
+
+	var allOutbounds []map[string]any
+	if err := json.Unmarshal([]byte(allOutboundsJSON), &allOutbounds); err != nil {
+		return nil, fmt.Errorf("invalid allOutbounds JSON: %v", err)
+	}
+
+	total := len(allOutbounds)
+	results := make([]*TestAllOutboundResult, 0, total)
+	tested := 0
+
+	testURL := "https://www.google.com/generate_204"
+
+	for i, outbound := range allOutbounds {
+		tag, _ := outbound["tag"].(string)
+		protocol, _ := outbound["protocol"].(string)
+
+		// Skip blackhole and blocked outbounds
+		if protocol == "blackhole" || tag == "blocked" {
+			results = append(results, &TestAllOutboundResult{
+				Index:   i,
+				Tag:     tag,
+				Success: false,
+				Error:   "Skipped: blocked/blackhole outbound",
+			})
+			tested++
+			continue
+		}
+
+		// Test single outbound (reuse existing method)
+		outboundJSON, _ := json.Marshal(outbound)
+		singleResult, err := s.TestOutbound(string(outboundJSON), testURL, allOutboundsJSON)
+
+		tested++
+
+		if err != nil {
+			results = append(results, &TestAllOutboundResult{
+				Index:   i,
+				Tag:     tag,
+				Success: false,
+				Error:   err.Error(),
+			})
+		} else if singleResult != nil {
+			results = append(results, &TestAllOutboundResult{
+				Index:      i,
+				Tag:        tag,
+				Success:    singleResult.Success,
+				Delay:      singleResult.Delay,
+				Error:      singleResult.Error,
+				StatusCode: singleResult.StatusCode,
+			})
+		}
+	}
+
+	totalTime := time.Since(startTime).Milliseconds()
+
+	return &TestAllOutboundsResult{
+		Total:     total,
+		Tested:    tested,
+		Results:   results,
+		TotalTime: totalTime,
+	}, nil
+}
+
+// StartAsyncTestAllOutbounds starts an async batch test task and returns task ID
+func (s *OutboundService) StartAsyncTestAllOutbounds(allOutboundsJSON string) (string, error) {
+	var allOutbounds []map[string]any
+	if err := json.Unmarshal([]byte(allOutboundsJSON), &allOutbounds); err != nil {
+		return "", fmt.Errorf("invalid allOutbounds JSON: %v", err)
+	}
+
+	// Create new task
+	task := batchTestTaskManager.CreateTask(len(allOutbounds))
+
+	// Start async execution
+	go s.executeAsyncTestAllOutbounds(task, allOutbounds, allOutboundsJSON)
+
+	return task.ID, nil
+}
+
+// executeAsyncTestAllOutbounds executes the batch test in the background
+func (s *OutboundService) executeAsyncTestAllOutbounds(task *BatchTestTask, allOutbounds []map[string]any, allOutboundsJSON string) {
+	testURL := "https://www.google.com/generate_204"
+	tested := 0
+
+	for i, outbound := range allOutbounds {
+		// Check if task was cancelled
+		select {
+		case <-task.Cancel:
+			batchTestTaskManager.CompleteTask(task.ID, "cancelled", time.Since(task.StartTime).Milliseconds())
+			return
+		default:
+		}
+
+		tag, _ := outbound["tag"].(string)
+		protocol, _ := outbound["protocol"].(string)
+
+		// Skip blackhole and blocked outbounds
+		if protocol == "blackhole" || tag == "blocked" {
+			result := &TestAllOutboundResult{
+				Index:   i,
+				Tag:     tag,
+				Success: false,
+				Error:   "Skipped: blocked/blackhole outbound",
+			}
+			batchTestTaskManager.UpdateTask(task.ID, tested+1, result)
+			tested++
+			continue
+		}
+
+		// Test single outbound
+		outboundJSON, _ := json.Marshal(outbound)
+		singleResult, err := s.TestOutbound(string(outboundJSON), testURL, allOutboundsJSON)
+
+		tested++
+
+		var result *TestAllOutboundResult
+		if err != nil {
+			result = &TestAllOutboundResult{
+				Index:   i,
+				Tag:     tag,
+				Success: false,
+				Error:   err.Error(),
+			}
+		} else if singleResult != nil {
+			result = &TestAllOutboundResult{
+				Index:      i,
+				Tag:        tag,
+				Success:    singleResult.Success,
+				Delay:      singleResult.Delay,
+				Error:      singleResult.Error,
+				StatusCode: singleResult.StatusCode,
+			}
+		}
+
+		batchTestTaskManager.UpdateTask(task.ID, tested, result)
+	}
+
+	totalTime := time.Since(task.StartTime).Milliseconds()
+	batchTestTaskManager.CompleteTask(task.ID, "completed", totalTime)
+}
+
+// GetBatchTestTask retrieves a batch test task by ID
+func (s *OutboundService) GetBatchTestTask(taskID string) (*BatchTestTask, bool) {
+	return batchTestTaskManager.GetTask(taskID)
+}
+
+// CancelBatchTestTask cancels a running batch test task
+func (s *OutboundService) CancelBatchTestTask(taskID string) bool {
+	return batchTestTaskManager.CancelTask(taskID)
 }

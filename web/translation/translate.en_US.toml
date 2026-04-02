@@ -531,6 +531,14 @@
 "testSuccess" = "Test successful"
 "testFailed" = "Test failed"
 "testError" = "Failed to test outbound"
+"testAll" = "Test All"
+"testingAll" = "Testing all outbounds..."
+"testComplete" = "Batch test completed"
+"testTotal" = "Total"
+"testSuccessCount" = "Success"
+"testFailedCount" = "Failed"
+"testTime" = "Time"
+"stopTest" = "Stop Test"
 
 [pages.xray.balancer]
 "addBalancer" = "Add Balancer"
