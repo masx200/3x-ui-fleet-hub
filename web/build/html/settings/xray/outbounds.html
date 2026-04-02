@@ -65,13 +65,15 @@
                         :format="() => `${batchTestProgress.current}/${batchTestProgress.total} (${batchTestProgressPercent}%)`"
                         style="margin-top: 8px;" />
                 </div>
-                <a-button
+               <a-button
                     type="danger"
                     size="small"
                     @click="stopBatchTest"
-                    style="margin-left: 16px;">
-                    <a-icon type="stop" />
-                    <span v-if="!isMobile">{{ i18n "pages.xray.outbound.stopTest" }}</span>
+                  style="height: 30px;width: 80px;margin-left: 16px;"
+
+                    class="ant-btn ant-btn-danger ant-btn-sm" >
+                    {{ i18n "pages.xray.outbound.stopTest" }}
+                    
                 </a-button>
             </div>
         </template>
