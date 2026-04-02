@@ -70,7 +70,7 @@ const crypto = require('crypto');
 
 // 生成内容哈希
 function generateHash(content) {
-  return crypto.createHash('md5').update(content).digest('hex').substring(0, 8);
+  return crypto.createHash('sha512').update(content).digest('hex')
 }
 
 // 获取所有需要处理的 JS 文件
@@ -571,9 +571,9 @@ clean:
 ### 4. 关键实现细节
 
 #### 4.1 文件哈希生成
-使用 MD5 哈希前 8 位作为文件后缀：
+使用 sha512 哈希前 8 位作为文件后缀：
 ```javascript
-crypto.createHash('md5').update(content).digest('hex').substring(0, 8);
+crypto.createHash('sha512').update(content).digest('hex')
 ```
 
 #### 4.2 esbuild 配置
