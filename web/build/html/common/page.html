@@ -1,0 +1,92 @@
+{{ define "page/head_start" }}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="renderer" content="webkit">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="{{ .base_path }}assets/ant-design-vue/antd.min.6a7cd2aac401d81c3614fac47e2aef82e85ebc5620a51b59168cd63446d9d57266c35c60b3e786aeed9b253a5e87ea5db1d93322ea6e01b42888a1433f8c9861.css">
+  <link rel="stylesheet" href="{{ .base_path }}assets/css/custom.min.css?{{ .cur_ver }}">
+  <style>
+    [v-cloak] {
+      display: none;
+    }
+    /* vazirmatn-regular - arabic_latin_latin-ext */
+    @font-face {
+      font-display: swap;
+      font-family: 'Vazirmatn';
+      font-style: normal;
+      font-weight: 400;
+      src: url('{{ .base_path }}assets/Vazirmatn-UI-NL-Regular.woff2') format('woff2');
+      unicode-range: U+0600-06FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE80-FEFC, U+0030-0039;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Vazirmatn', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    /* mobile touch scrolling for tabs */
+    @media (max-width: 576px) {
+      .ant-tabs-nav-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+        overscroll-behavior-x: contain;
+        white-space: nowrap;
+        max-width: 100%;
+        padding: 0 !important; /* Remove padding for arrows */
+      }
+      .ant-tabs-nav-wrap {
+        overflow: visible !important;
+        padding: 0 !important;
+      }
+      .ant-tabs-nav-scroll {
+        overflow: visible !important;
+        box-shadow: none !important;
+      }
+      .ant-tabs-nav {
+         display: flex !important;
+         transform: none !important; /* Disable JS transform */
+         width: auto !important;
+         margin: 0 !important;
+      }
+      .ant-tabs-tab-prev,
+      .ant-tabs-tab-next {
+        display: none !important; /* Hide arrows */
+      }
+      .ant-tabs-nav-container::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  </style>
+  <title>{{ .host }} – {{ i18n .title}}</title>
+{{ end }}
+
+{{ define "page/head_end" }}
+</head>
+{{ end }}
+
+{{ define "page/body_start" }}
+<body>
+  <div id="message"></div>
+{{ end }}
+
+{{ define "page/body_scripts" }}
+<script src="{{ .base_path }}assets/vue/vue.min.js?{{ .cur_ver }}"></script>
+<script src="{{ .base_path }}assets/moment/moment.min.40f1be07918a78da13182de1669efc70d6c5e41c729201117098034894a78e70bfc7d938905e008139ff048bc5a9ef75809c239ad6caec23f1ccec41e85769be.js"></script>
+<script src="{{ .base_path }}assets/ant-design-vue/antd.min.f54a0473f51132dcb4f489f53d507fdca014fe1a677eec339a387fbe3001a89144cc5378634ba5bed2f4ae98d8b3c378c4ce8cd8f83557f7eff0b1aafdb67231.js"></script>
+<script src="{{ .base_path }}assets/axios/axios.min.js?{{ .cur_ver }}"></script>
+<script src="{{ .base_path }}assets/qs/qs.min.d6a9bd3a2ca38bdffcfb81cd5486fcb1bcd682bfdeae1925bf2042f623a2758a13acb25adafdb864cf22f0340fd280e19a333ba45225dd83a81c9c6700e8705e.js"></script>
+<script src="{{ .base_path }}assets/js/axios-init.js?{{ .cur_ver }}"></script>
+<script src="{{ .base_path }}assets/js/util/index.js?{{ .cur_ver }}"></script>
+<script>
+  const basePath = '{{ .base_path }}';
+  axios.defaults.baseURL = basePath;
+</script>
+<script src="{{ .base_path }}assets/js/websocket.js?{{ .cur_ver }}"></script>
+{{ end }}
+  
+{{ define "page/body_end" }}
+</body>
+</html>
+{{ end }}

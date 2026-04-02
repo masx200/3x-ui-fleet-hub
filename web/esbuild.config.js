@@ -27,7 +27,7 @@ function getJSEntries() {
       if (stat.isDirectory()) {
         walkDir(fullPath, path.join(baseDir, file));
       } else if (file.endsWith('.js')) {
-        const relativePath = path.join(baseDir, file.replace('.js', ''));
+        const relativePath = path.join(baseDir, file);
         const key = relativePath.replace(/\\/g, '/');
         entries[key] = fullPath;
       }
@@ -67,7 +67,7 @@ function getJSEntries() {
   for (const vendor of vendors) {
     const vendorPath = path.join(jsDir, vendor);
     if (fs.existsSync(vendorPath)) {
-      const key = vendor.replace('.js', '').replace(/\\/g, '/');
+      const key = vendor.replace(/\\/g, '/'); // 保留完整的文件名包括 .js
       entries[key] = vendorPath;
     }
   }
@@ -89,7 +89,7 @@ function getCSSEntries() {
       if (stat.isDirectory()) {
         walkDir(fullPath, path.join(baseDir, file));
       } else if (file.endsWith('.css')) {
-        const relativePath = path.join(baseDir, file.replace('.css', ''));
+        const relativePath = path.join(baseDir, file); // 保留完整的文件名包括 .css
         const key = relativePath.replace(/\\/g, '/');
         entries[key] = fullPath;
       }

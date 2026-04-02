@@ -3,6 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import esbuild from 'esbuild';
+import { execSync } from 'child_process';
 import config from '../esbuild.config.js';
 
 const args = process.argv.slice(2);
@@ -36,7 +37,7 @@ async function buildJS(manifest) {
         entryPoints: [entry],
         bundle: false,
         minify: true,
-        outfile: path.join(buildDir, `${name}.min.js`),
+        outfile: path.join(buildDir, name),
         target: 'es2015',
         write: false,
       });
@@ -45,7 +46,10 @@ async function buildJS(manifest) {
       if (outputFiles && outputFiles.length > 0) {
         const content = outputFiles[0].contents;
         const hash = config.generateHash(content);
-        const hashFileName = `${name}.min.${hash}.js`;
+
+        // 移除原始扩展名，添加哈希，然后重新添加扩展名
+        const baseName = name.replace(/\.js$/, '');
+        const hashFileName = `${baseName}.${hash}.js`;
         const hashPath = path.join(buildDir, hashFileName);
 
         // 写入带哈希的文件
@@ -60,7 +64,7 @@ async function buildJS(manifest) {
           size: content.length,
         };
 
-        console.log(`  ✓ ${name}.js → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
+        console.log(`  ✓ ${name} → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
       }
     } catch (error) {
       console.error(`  ✗ Error building ${name}:`, error.message);
@@ -84,7 +88,7 @@ async function buildCSS(manifest) {
         entryPoints: [entry],
         bundle: false,
         minify: true,
-        outfile: path.join(buildDir, `${name}.min.css`),
+        outfile: path.join(buildDir, name),
         write: false,
       });
 
@@ -92,7 +96,10 @@ async function buildCSS(manifest) {
       if (outputFiles && outputFiles.length > 0) {
         const content = outputFiles[0].contents;
         const hash = config.generateHash(content);
-        const hashFileName = `${name}.min.${hash}.css`;
+
+        // 移除原始扩展名，添加哈希，然后重新添加扩展名
+        const baseName = name.replace(/\.css$/, '');
+        const hashFileName = `${baseName}.${hash}.css`;
         const hashPath = path.join(buildDir, hashFileName);
 
         const hashDir = path.dirname(hashPath);
@@ -106,7 +113,7 @@ async function buildCSS(manifest) {
           size: content.length,
         };
 
-        console.log(`  ✓ ${name}.css → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
+        console.log(`  ✓ ${name} → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
       }
     } catch (error) {
       console.error(`  ✗ Error building ${name}:`, error.message);
@@ -188,6 +195,22 @@ function copyDir(src, dest) {
   }
 }
 
+// 更新 HTML 模板中的资源引用
+function updateHTMLReferences() {
+  console.log('→ Updating HTML template references...');
+
+  try {
+    execSync('node scripts/update-html.js', {
+      cwd: config.paths.root,
+      stdio: 'inherit'
+    });
+    console.log('✓ Updated HTML template references');
+  } catch (error) {
+    console.error('✗ Failed to update HTML references:', error.message);
+    throw error;
+  }
+}
+
 // 主构建流程
 async function build() {
   console.log('\n' + '='.repeat(50));
@@ -208,6 +231,7 @@ async function build() {
     copyStaticFiles();
     generateManifest(manifest);
     copyHtmlToBuild();
+    updateHTMLReferences();
 
     console.log('\n' + '='.repeat(50));
     console.log('✓ Build completed successfully!');
