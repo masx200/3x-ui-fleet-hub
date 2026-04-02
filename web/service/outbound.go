@@ -31,18 +31,18 @@ var testSemaphore sync.Mutex
 
 // BatchTestTask represents an async batch test task
 type BatchTestTask struct {
-	ID              string                   `json:"id"`
-	Status          string                   `json:"status"` // running, completed, cancelled, failed
-	Progress        int                      `json:"progress"`
-	Total           int                      `json:"total"`
-	Current         int                      `json:"current"`
-	Results         []*TestAllOutboundResult `json:"results"`
-	StartTime       time.Time                `json:"startTime"`
-	EndTime         *time.Time               `json:"endTime,omitempty"`
-	TotalTime       int64                    `json:"totalTime"`
-	Cancel          chan struct{}            `json:"-"`
-	SuccessCount    int                      `json:"successCount"`
-	FailedCount     int                      `json:"failedCount"`
+	ID           string                   `json:"id"`
+	Status       string                   `json:"status"` // running, completed, cancelled, failed
+	Progress     int                      `json:"progress"`
+	Total        int                      `json:"total"`
+	Current      int                      `json:"current"`
+	Results      []*TestAllOutboundResult `json:"results"`
+	StartTime    time.Time                `json:"startTime"`
+	EndTime      *time.Time               `json:"endTime,omitempty"`
+	TotalTime    int64                    `json:"totalTime"`
+	Cancel       chan struct{}            `json:"-"`
+	SuccessCount int                      `json:"successCount"`
+	FailedCount  int                      `json:"failedCount"`
 }
 
 // BatchTestTaskManager manages async batch test tasks
