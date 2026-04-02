@@ -1,0 +1,13 @@
+{
+  "name": "3x-ui-fleet-hub-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "clean": "node scripts/build.js --clean"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}

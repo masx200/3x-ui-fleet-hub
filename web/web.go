@@ -34,11 +34,11 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-//go:embed assets
-var assetsFS embed.FS
+//go:embed build/assets
+var buildAssetsFS embed.FS
 
-//go:embed html/*
-var htmlFS embed.FS
+//go:embed build/html/*
+var buildHtmlFS embed.FS
 
 //go:embed translation/*
 var i18nFS embed.FS
@@ -50,7 +50,7 @@ type wrapAssetsFS struct {
 }
 
 func (f *wrapAssetsFS) Open(name string) (fs.File, error) {
-	file, err := f.FS.Open("assets/" + name)
+	file, err := f.FS.Open("build/assets/" + name)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,12 @@ func (f *wrapAssetsFileInfo) ModTime() time.Time {
 
 // EmbeddedHTML returns the embedded HTML templates filesystem for reuse by other servers.
 func EmbeddedHTML() embed.FS {
-	return htmlFS
+	return buildHtmlFS
 }
 
 // EmbeddedAssets returns the embedded assets filesystem for reuse by other servers.
 func EmbeddedAssets() embed.FS {
-	return assetsFS
+	return buildAssetsFS
 }
 
 // Server represents the main web server for the 3x-ui panel with controllers, services, and scheduled jobs.
@@ -122,12 +122,19 @@ func NewServer() *Server {
 	}
 }
 
-// getHtmlFiles walks the local `web/html` directory and returns a list of
-// template file paths. Used only in debug/development mode.
+// getHtmlFiles walks the local `web/build/html` or `web/src/html` directory
+// and returns a list of template file paths. Used only in debug/development mode.
 func (s *Server) getHtmlFiles() ([]string, error) {
 	files := make([]string, 0)
 	dir, _ := os.Getwd()
-	err := fs.WalkDir(os.DirFS(dir), "web/html", func(path string, d fs.DirEntry, err error) error {
+
+	// Try build directory first, fallback to src directory
+	htmlDir := "web/build/html"
+	if _, err := os.Stat(htmlDir); os.IsNotExist(err) {
+		htmlDir = "web/src/html"
+	}
+
+	err := fs.WalkDir(os.DirFS(dir), htmlDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -143,18 +150,18 @@ func (s *Server) getHtmlFiles() ([]string, error) {
 	return files, nil
 }
 
-// getHtmlTemplate parses embedded HTML templates from the bundled `htmlFS`
+// getHtmlTemplate parses embedded HTML templates from the bundled `buildHtmlFS`
 // using the provided template function map and returns the resulting
 // template set for production usage.
 func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, error) {
 	t := template.New("").Funcs(funcMap)
-	err := fs.WalkDir(htmlFS, "html", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(buildHtmlFS, "build/html", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		if d.IsDir() {
-			newT, err := t.ParseFS(htmlFS, path+"/*.html")
+			newT, err := t.ParseFS(buildHtmlFS, path+"/*.html")
 			if err != nil {
 				// ignore
 				return nil
@@ -243,22 +250,28 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 
 	// set static files and template
 	if config.IsDebug() {
-		// for development
+		// for development - use build directory if exists, otherwise use src
 		files, err := s.getHtmlFiles()
 		if err != nil {
 			return nil, err
 		}
 		// Use the registered func map with the loaded templates
 		engine.LoadHTMLFiles(files...)
-		engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/assets")))
+
+		// Use build assets if available, otherwise use src assets
+		if _, err := os.Stat("web/build/assets"); err == nil {
+			engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/build/assets")))
+		} else {
+			engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/src/assets")))
+		}
 	} else {
-		// for production
+		// for production - always use embedded build assets
 		template, err := s.getHtmlTemplate(funcMap)
 		if err != nil {
 			return nil, err
 		}
 		engine.SetHTMLTemplate(template)
-		engine.StaticFS(basePath+"assets", http.FS(&wrapAssetsFS{FS: assetsFS}))
+		engine.StaticFS(basePath+"assets", http.FS(&wrapAssetsFS{FS: buildAssetsFS}))
 	}
 
 	// Apply the redirect middleware (`/xui` to `/panel`)

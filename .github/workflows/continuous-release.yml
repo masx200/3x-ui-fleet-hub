@@ -105,6 +105,17 @@ jobs:
           go-version-file: go.mod
           check-latest: true
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd web
+          npm install
+          npm run build
+
       - name: Build 3X-UI
         run: |
           export CGO_ENABLED=1
@@ -221,6 +232,17 @@ jobs:
         with:
           go-version-file: go.mod
           check-latest: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (Windows)
+        run: |
+          cd web
+          npm install
+          npm run build
 
       - name: Install MSYS2
         uses: msys2/setup-msys2@v2
