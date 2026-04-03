@@ -381,26 +381,32 @@ func (s *OutboundService) TestOutbound(outboundJSON string, testURL string, allO
 	// Check if process is still running
 	if !testProcess.IsRunning() {
 		result := testProcess.GetResult()
-		return &TestOutboundResult{
+		testResult := &TestOutboundResult{
 			Success: false,
 			Error:   fmt.Sprintf("Xray process exited: %s", result),
-		}, nil
+		}
+		_ = s.SaveTestResult(outboundTag, testResult)
+		return testResult, nil
 	}
 
 	// Test the connection through proxy
 	delay, statusCode, err := s.testConnection(testPort, testURL)
 	if err != nil {
-		return &TestOutboundResult{
+		testResult := &TestOutboundResult{
 			Success: false,
 			Error:   err.Error(),
-		}, nil
+		}
+		_ = s.SaveTestResult(outboundTag, testResult)
+		return testResult, nil
 	}
 
-	return &TestOutboundResult{
+	testResult := &TestOutboundResult{
 		Success:    true,
 		Delay:      delay,
 		StatusCode: statusCode,
-	}, nil
+	}
+	_ = s.SaveTestResult(outboundTag, testResult)
+	return testResult, nil
 }
 
 // createTestConfig creates a test config by copying all outbounds unchanged and adding
@@ -720,4 +726,45 @@ func (s *OutboundService) GetBatchTestTask(taskID string) (*BatchTestTask, bool)
 // CancelBatchTestTask cancels a running batch test task
 func (s *OutboundService) CancelBatchTestTask(taskID string) bool {
 	return batchTestTaskManager.CancelTask(taskID)
+}
+
+// SaveTestResult saves a test result to the database
+func (s *OutboundService) SaveTestResult(tag string, result *TestOutboundResult) error {
+	db := database.GetDB()
+
+	var testResult model.OutboundTestResult
+	err := db.Where("tag = ?", tag).FirstOrCreate(&testResult).Error
+	if err != nil {
+		return err
+	}
+
+	testResult.Tag = tag
+	testResult.Success = result.Success
+	testResult.Delay = result.Delay
+	testResult.StatusCode = result.StatusCode
+	testResult.Error = result.Error
+
+	return db.Save(&testResult).Error
+}
+
+// GetTestResult retrieves a test result by tag
+func (s *OutboundService) GetTestResult(tag string) (*model.OutboundTestResult, error) {
+	db := database.GetDB()
+	var testResult model.OutboundTestResult
+	err := db.Where("tag = ?", tag).First(&testResult).Error
+	if err != nil {
+		return nil, err
+	}
+	return &testResult, nil
+}
+
+// GetAllTestResults retrieves all test results
+func (s *OutboundService) GetAllTestResults() ([]*model.OutboundTestResult, error) {
+	db := database.GetDB()
+	var testResults []*model.OutboundTestResult
+	err := db.Find(&testResults).Error
+	if err != nil {
+		return nil, err
+	}
+	return testResults, nil
 }

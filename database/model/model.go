@@ -64,6 +64,17 @@ type OutboundTraffics struct {
 	Total int64  `json:"total" form:"total" gorm:"default:0"`
 }
 
+// OutboundTestResult stores the latest test result for each outbound.
+type OutboundTestResult struct {
+	Id         int    `json:"id" form:"id" gorm:"primaryKey;autoIncrement"`
+	Tag        string `json:"tag" form:"tag" gorm:"unique;index"`
+	Success    bool   `json:"success" form:"success" gorm:"default:false"`
+	Delay      int64  `json:"delay" form:"delay" gorm:"default:0"` // Delay in milliseconds
+	StatusCode int    `json:"statusCode" form:"statusCode" gorm:"default:0"`
+	Error      string `json:"error" form:"error" gorm:"size:512"`
+	UpdatedAt  int64  `json:"updatedAt" form:"updatedAt" gorm:"autoUpdateTime"`
+}
+
 // InboundClientIps stores IP addresses associated with inbound clients for access control.
 type InboundClientIps struct {
 	Id          int    `json:"id" gorm:"primaryKey;autoIncrement"`

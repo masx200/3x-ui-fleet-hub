@@ -413,6 +413,34 @@
           this.outboundsTraffic = msg.obj;
         }
       },
+      async getOutboundTestResults() {
+        const msg = await HttpUtil.get("/panel/xray/getOutboundTestResults");
+        if (msg.success && msg.obj) {
+          // Convert array to map by tag for easy lookup
+          const testResultsMap = {};
+          msg.obj.forEach(result => {
+            testResultsMap[result.tag] = {
+              testing: false,
+              result: {
+                success: result.success,
+                delay: result.delay,
+                statusCode: result.statusCode,
+                error: result.error
+              }
+            };
+          });
+
+          // Initialize test states with stored results
+          if (this.templateSettings && this.templateSettings.outbounds) {
+            this.templateSettings.outbounds.forEach((outbound, index) => {
+              const tag = outbound.tag;
+              if (testResultsMap[tag]) {
+                this.$set(this.outboundTestStates, index, testResultsMap[tag]);
+              }
+            });
+          }
+        }
+      },
       async getXraySetting() {
         const msg = await HttpUtil.post("/panel/xray/");
 
@@ -715,6 +743,9 @@
                 `{{ i18n "pages.xray.outbound.testFailed" }}: ${result.error || 'Unknown error'}`
               );
             }
+
+            // Refresh test results from database to ensure persistence
+            await this.getOutboundTestResults();
           } else {
             this.$set(this.outboundTestStates[actualIndex], 'result', {
               success: false,
@@ -855,10 +886,14 @@
 
             if (task.status === 'completed') {
               Vue.prototype.$message.success(`Batch test completed: ${task.successCount} succeeded, ${task.failedCount} failed. Time: ${task.totalTime}ms`);
+              // Refresh test results from database after batch test completion
+              await this.getOutboundTestResults();
             } else if (task.status === 'cancelled') {
               Vue.prototype.$message.info('Batch test was cancelled');
+              await this.getOutboundTestResults();
             } else {
               Vue.prototype.$message.error('Batch test failed');
+              await this.getOutboundTestResults();
             }
           }
         } catch (error) {
@@ -1304,6 +1339,7 @@
       await this.getXraySetting();
       await this.getXrayResult();
       await this.getOutboundsTraffic();
+      await this.getOutboundTestResults();
 
       if (window.wsClient) {
           window.wsClient.connect();

@@ -33,6 +33,7 @@ func (a *XraySettingController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getOutboundsTraffic", a.getOutboundsTraffic)
 	g.GET("/getXrayResult", a.getXrayResult)
 	g.GET("/getBatchTestTask/:taskId", a.getBatchTestTask)
+	g.GET("/getOutboundTestResults", a.getOutboundTestResults)
 
 	g.POST("/", a.getXraySetting)
 	g.POST("/warp/:action", a.warp)
@@ -219,4 +220,14 @@ func (a *XraySettingController) cancelBatchTestTask(c *gin.Context) {
 	}
 
 	jsonObj(c, map[string]bool{"cancelled": true}, nil)
+}
+
+// getOutboundTestResults retrieves all stored test results
+func (a *XraySettingController) getOutboundTestResults(c *gin.Context) {
+	results, err := a.OutboundService.GetAllTestResults()
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.settings.toasts.getOutboundTestResultsError"), err)
+		return
+	}
+	jsonObj(c, results, nil)
 }
