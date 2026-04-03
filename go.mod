@@ -3,7 +3,7 @@ module github.com/mhsanaei/3x-ui/v2
 go 1.26.0
 
 require (
-	github.com/gin-contrib/gzip v1.2.5
+	github.com/gin-contrib/gzip v1.2.6
 	github.com/gin-contrib/sessions v1.0.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-ldap/ldap/v3 v3.4.13
