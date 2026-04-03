@@ -96,10 +96,10 @@
         <template slot="message">
             <div>{{ i18n "pages.xray.outbound.testComplete" }}</div>
             <a-statistic-group style="margin-top: 8px;">
-                <a-statistic :title="i18n('pages.xray.outbound.testTotal')" :value="batchTestResults.total" />
-                <a-statistic :title="i18n('pages.xray.outbound.testSuccessCount')" :value="batchTestResults.successCount" :value-style="{ color: '#52c41a' }" />
-                <a-statistic :title="i18n('pages.xray.outbound.testFailedCount')" :value="batchTestResults.failedCount" :value-style="{ color: '#f5222d' }" />
-                <a-statistic :title="i18n('pages.xray.outbound.testTime')" :value="batchTestResults.totalTime" suffix="ms" />
+                <a-statistic :title="'{{ i18n "pages.xray.outbound.testTotal" }}'" :value="batchTestResults.total" />
+                <a-statistic :title="'{{ i18n "pages.xray.outbound.testSuccessCount" }}'" :value="batchTestResults.successCount" :value-style="{ color: '#52c41a' }" />
+                <a-statistic :title="'{{ i18n "pages.xray.outbound.testFailedCount" }}'" :value="batchTestResults.failedCount" :value-style="{ color: '#f5222d' }" />
+                <a-statistic :title="'{{ i18n "pages.xray.outbound.testTime" }}'" :value="batchTestResults.totalTime" suffix="ms" />
             </a-statistic-group>
         </template>
     </a-alert>
