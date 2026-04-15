@@ -53,7 +53,7 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Continuous Integration Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.git-info.outputs.version_tag }}
           name: Continuous Integration ${{ steps.git-info.outputs.version_tag }}
@@ -203,7 +203,7 @@ jobs:
         run: tar -zcvf x-ui-linux-${{ matrix.platform }}.tar.gz x-ui
 
       - name: Upload files to CI Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.continuous-release.outputs.version_tag }}
           files: x-ui-linux-${{ matrix.platform }}.tar.gz
@@ -303,7 +303,7 @@ jobs:
           Compress-Archive -Path .\x-ui -DestinationPath "x-ui-windows-amd64.zip"
 
       - name: Upload files to CI Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.continuous-release.outputs.version_tag }}
           files: x-ui-windows-amd64.zip
