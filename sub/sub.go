@@ -212,10 +212,10 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 
 	// Mount assets in multiple paths to handle different URL patterns
 	var assetsFS http.FileSystem
-	if _, err := os.Stat("web/assets"); err == nil {
-		assetsFS = http.FS(os.DirFS("web/assets"))
+	if _, err := os.Stat("web/build/assets"); err == nil {
+		assetsFS = http.FS(os.DirFS("web/build/assets"))
 	} else {
-		if subFS, err := fs.Sub(webpkg.EmbeddedAssets(), "assets"); err == nil {
+		if subFS, err := fs.Sub(webpkg.EmbeddedAssets(), "build/assets"); err == nil {
 			assetsFS = http.FS(subFS)
 		} else {
 			logger.Error("sub: failed to mount embedded assets:", err)

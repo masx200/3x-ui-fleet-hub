@@ -2,14 +2,19 @@
 
 ## Context
 
-当前项目的前端资源（JS/CSS）在 `web/src/assets` 目录中，总计 41 个文件约 8.3MB。部分文件已压缩，部分未压缩（如 `inbound.js` 82KB）。资源在编译时通过 `//go:embed` 嵌入到 Go 二进制文件中，使用查询参数 `?{{ .cur_ver }}` 实现缓存管理。
+当前项目的前端资源（JS/CSS）在 `web/src/assets` 目录中，总计 41 个文件约
+8.3MB。部分文件已压缩，部分未压缩（如 `inbound.js` 82KB）。资源在编译时通过
+`//go:embed` 嵌入到 Go 二进制文件中，使用查询参数 `?{{ .cur_ver }}`
+实现缓存管理。
 
 **问题**：
+
 - 文件体积较大，影响加载速度
 - 缺少内容哈希，缓存策略不够高效
 - 没有自动化的前端构建流程
 
 **目标**：
+
 - 使用 esbuild 压缩所有 JS/CSS 文件（包括第三方库）
 - 为每个文件添加内容哈希后缀（如 `custom.min.a1b2c3d4.css`）
 - 自动更新 HTML 模板中的资源引用
@@ -72,11 +77,11 @@ web/
 esbuild 配置和入口点定义：
 
 ```javascript
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import path from "path";
+import fs from "fs";
+import crypto from "crypto";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 // ES modules 中获取 __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -84,15 +89,15 @@ const __dirname = dirname(__filename);
 
 // 生成内容哈希
 function generateHash(content) {
-  return crypto.createHash('sha512').update(content).digest('hex')
+  return crypto.createHash("sha512").update(content).digest("hex");
 }
 
 // 获取所有需要处理的 JS 文件
 function getJSEntries() {
-  const jsDir = path.join(__dirname, 'src/assets');
+  const jsDir = path.join(__dirname, "src/assets");
   const entries = {};
 
-  function walkDir(dir, baseDir = '') {
+  function walkDir(dir, baseDir = "") {
     const files = fs.readdirSync(dir);
     for (const file of files) {
       const fullPath = path.join(dir, file);
@@ -100,48 +105,48 @@ function getJSEntries() {
 
       if (stat.isDirectory()) {
         walkDir(fullPath, path.join(baseDir, file));
-      } else if (file.endsWith('.js')) {
-        const relativePath = path.join(baseDir, file.replace('.js', ''));
-        const key = relativePath.replace(/\\/g, '/');
+      } else if (file.endsWith(".js")) {
+        const relativePath = path.join(baseDir, file.replace(".js", ""));
+        const key = relativePath.replace(/\\/g, "/");
         entries[key] = fullPath;
       }
     }
   }
 
   // 处理 js/ 目录
-  const jsPath = path.join(jsDir, 'js');
+  const jsPath = path.join(jsDir, "js");
   if (fs.existsSync(jsPath)) {
-    walkDir(jsPath, 'js');
+    walkDir(jsPath, "js");
   }
 
   // 处理第三方库
   const vendors = [
-    'vue/vue.min.js',
-    'axios/axios.min.js',
-    'moment/moment.min.js',
-    'moment/moment-jalali.min.js',
-    'qs/qs.min.js',
-    'ant-design-vue/antd.min.js',
-    'codemirror/codemirror.min.js',
-    'codemirror/javascript.js',
-    'codemirror/jshint.js',
-    'codemirror/jsonlint.js',
-    'codemirror/fold/foldcode.js',
-    'codemirror/fold/foldgutter.js',
-    'codemirror/fold/brace-fold.js',
-    'codemirror/hint/javascript-hint.js',
-    'codemirror/lint/lint.js',
-    'codemirror/lint/javascript-lint.js',
-    'otpauth/otpauth.umd.min.js',
-    'qrcode/qrious2.min.js',
-    'uri/URI.min.js',
-    'persian-datepicker/persian-datepicker.min.js',
+    "vue/vue.min.js",
+    "axios/axios.min.js",
+    "moment/moment.min.js",
+    "moment/moment-jalali.min.js",
+    "qs/qs.min.js",
+    "ant-design-vue/antd.min.js",
+    "codemirror/codemirror.min.js",
+    "codemirror/javascript.js",
+    "codemirror/jshint.js",
+    "codemirror/jsonlint.js",
+    "codemirror/fold/foldcode.js",
+    "codemirror/fold/foldgutter.js",
+    "codemirror/fold/brace-fold.js",
+    "codemirror/hint/javascript-hint.js",
+    "codemirror/lint/lint.js",
+    "codemirror/lint/javascript-lint.js",
+    "otpauth/otpauth.umd.min.js",
+    "qrcode/qrious2.min.js",
+    "uri/URI.min.js",
+    "persian-datepicker/persian-datepicker.min.js",
   ];
 
   for (const vendor of vendors) {
     const vendorPath = path.join(jsDir, vendor);
     if (fs.existsSync(vendorPath)) {
-      const key = vendor.replace('.js', '').replace(/\\/g, '/');
+      const key = vendor.replace(".js", "").replace(/\\/g, "/");
       entries[key] = vendorPath;
     }
   }
@@ -151,10 +156,10 @@ function getJSEntries() {
 
 // 获取所有需要处理的 CSS 文件
 function getCSSEntries() {
-  const cssDir = path.join(__dirname, 'src/assets');
+  const cssDir = path.join(__dirname, "src/assets");
   const entries = {};
 
-  function walkDir(dir, baseDir = '') {
+  function walkDir(dir, baseDir = "") {
     const files = fs.readdirSync(dir);
     for (const file of files) {
       const fullPath = path.join(dir, file);
@@ -162,16 +167,16 @@ function getCSSEntries() {
 
       if (stat.isDirectory()) {
         walkDir(fullPath, path.join(baseDir, file));
-      } else if (file.endsWith('.css')) {
-        const relativePath = path.join(baseDir, file.replace('.css', ''));
-        const key = relativePath.replace(/\\/g, '/');
+      } else if (file.endsWith(".css")) {
+        const relativePath = path.join(baseDir, file.replace(".css", ""));
+        const key = relativePath.replace(/\\/g, "/");
         entries[key] = fullPath;
       }
     }
   }
 
   // 处理所有 CSS 文件
-  walkDir(cssDir, '');
+  walkDir(cssDir, "");
 
   return entries;
 }
@@ -179,7 +184,7 @@ function getCSSEntries() {
 // 获取不需要压缩的文件（字体等）
 function getCopyFiles() {
   return [
-    'Vazirmatn-UI-NL-Regular.woff2',
+    "Vazirmatn-UI-NL-Regular.woff2",
   ];
 }
 
@@ -190,11 +195,11 @@ export default {
   getCopyFiles,
   paths: {
     root: path.join(__dirname),
-    srcAssets: path.join(__dirname, 'src/assets'),
-    srcHtml: path.join(__dirname, 'src/html'),
-    buildAssets: path.join(__dirname, 'build/assets'),
-    buildHtml: path.join(__dirname, 'build/html'),
-    build: path.join(__dirname, 'build'),
+    srcAssets: path.join(__dirname, "src/assets"),
+    srcHtml: path.join(__dirname, "src/html"),
+    buildAssets: path.join(__dirname, "build/assets"),
+    buildHtml: path.join(__dirname, "build/html"),
+    build: path.join(__dirname, "build"),
   },
 };
 ```
@@ -206,13 +211,13 @@ export default {
 ```javascript
 #!/usr/bin/env node
 
-import fs from 'fs';
-import path from 'path';
-import esbuild from 'esbuild';
-import config from '../esbuild.config.js';
+import fs from "fs";
+import path from "path";
+import esbuild from "esbuild";
+import config from "../esbuild.config.js";
 
 const args = process.argv.slice(2);
-const isClean = args.includes('--clean');
+const isClean = args.includes("--clean");
 
 // 清理构建目录
 function clean() {
@@ -222,12 +227,12 @@ function clean() {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
-  console.log('✓ Cleaned build directories');
+  console.log("✓ Cleaned build directories");
 }
 
 // 压缩 JS 文件
 async function buildJS(manifest) {
-  console.log('→ Building JS files...');
+  console.log("→ Building JS files...");
 
   const buildDir = config.paths.buildAssets;
   if (!fs.existsSync(buildDir)) {
@@ -243,7 +248,7 @@ async function buildJS(manifest) {
         bundle: false,
         minify: true,
         outfile: path.join(buildDir, `${name}.min.js`),
-        target: 'es2015',
+        target: "es2015",
         write: false,
       });
 
@@ -266,7 +271,11 @@ async function buildJS(manifest) {
           size: content.length,
         };
 
-        console.log(`  ✓ ${name}.js → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
+        console.log(
+          `  ✓ ${name}.js → ${hashFileName} (${
+            (content.length / 1024).toFixed(1)
+          } KB)`,
+        );
       }
     } catch (error) {
       console.error(`  ✗ Error building ${name}:`, error.message);
@@ -274,12 +283,12 @@ async function buildJS(manifest) {
     }
   }
 
-  console.log('✓ Built JS files');
+  console.log("✓ Built JS files");
 }
 
 // 压缩 CSS 文件
 async function buildCSS(manifest) {
-  console.log('→ Building CSS files...');
+  console.log("→ Building CSS files...");
 
   const buildDir = config.paths.buildAssets;
   const entries = config.getCSSEntries();
@@ -312,19 +321,23 @@ async function buildCSS(manifest) {
           size: content.length,
         };
 
-        console.log(`  ✓ ${name}.css → ${hashFileName} (${(content.length / 1024).toFixed(1)} KB)`);
+        console.log(
+          `  ✓ ${name}.css → ${hashFileName} (${
+            (content.length / 1024).toFixed(1)
+          } KB)`,
+        );
       }
     } catch (error) {
       console.error(`  ✗ Error building ${name}:`, error.message);
     }
   }
 
-  console.log('✓ Built CSS files');
+  console.log("✓ Built CSS files");
 }
 
 // 复制不需要压缩的文件
 function copyStaticFiles() {
-  console.log('→ Copying static files...');
+  console.log("→ Copying static files...");
 
   const buildDir = config.paths.buildAssets;
   const files = config.getCopyFiles();
@@ -343,23 +356,23 @@ function copyStaticFiles() {
     }
   }
 
-  console.log('✓ Copied static files');
+  console.log("✓ Copied static files");
 }
 
 // 生成 manifest.json
 function generateManifest(manifest) {
-  console.log('→ Generating manifest.json...');
+  console.log("→ Generating manifest.json...");
 
-  const manifestPath = path.join(config.paths.build, 'manifest.json');
+  const manifestPath = path.join(config.paths.build, "manifest.json");
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
-  console.log('✓ Generated manifest.json');
+  console.log("✓ Generated manifest.json");
   console.log(`  Total entries: ${Object.keys(manifest).length}`);
 }
 
 // 复制 src/html 到 build/html（保留原始结构）
 function copyHtmlToBuild() {
-  console.log('→ Copying HTML templates to build...');
+  console.log("→ Copying HTML templates to build...");
 
   const srcHtmlDir = config.paths.srcHtml;
   const buildHtmlDir = config.paths.buildHtml;
@@ -372,7 +385,7 @@ function copyHtmlToBuild() {
   // 复制 src/html 到 build/html
   copyDir(srcHtmlDir, buildHtmlDir);
 
-  console.log('✓ Copied HTML templates to build');
+  console.log("✓ Copied HTML templates to build");
 }
 
 function copyDir(src, dest) {
@@ -396,9 +409,9 @@ function copyDir(src, dest) {
 
 // 主构建流程
 async function build() {
-  console.log('\n' + '='.repeat(50));
-  console.log('Building frontend (PRODUCTION)');
-  console.log('='.repeat(50) + '\n');
+  console.log("\n" + "=".repeat(50));
+  console.log("Building frontend (PRODUCTION)");
+  console.log("=".repeat(50) + "\n");
 
   if (isClean) {
     clean();
@@ -415,12 +428,11 @@ async function build() {
     generateManifest(manifest);
     copyHtmlToBuild();
 
-    console.log('\n' + '='.repeat(50));
-    console.log('✓ Build completed successfully!');
-    console.log('='.repeat(50) + '\n');
-
+    console.log("\n" + "=".repeat(50));
+    console.log("✓ Build completed successfully!");
+    console.log("=".repeat(50) + "\n");
   } catch (error) {
-    console.error('\n✗ Build failed:', error);
+    console.error("\n✗ Build failed:", error);
     process.exit(1);
   }
 }
@@ -435,18 +447,18 @@ HTML 模板更新脚本：
 ```javascript
 #!/usr/bin/env node
 
-import fs from 'fs';
-import path from 'path';
-import config from '../esbuild.config.js';
+import fs from "fs";
+import path from "path";
+import config from "../esbuild.config.js";
 
 // 读取 manifest
-const manifestPath = path.join(config.paths.build, 'manifest.json');
+const manifestPath = path.join(config.paths.build, "manifest.json");
 if (!fs.existsSync(manifestPath)) {
-  console.error('✗ manifest.json not found. Run build first.');
+  console.error("✗ manifest.json not found. Run build first.");
   process.exit(1);
 }
 
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
 
 // 获取所有 HTML 文件（从 build/html）
 function getHTMLFiles() {
@@ -459,7 +471,7 @@ function getHTMLFiles() {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walkDir(fullPath);
-      } else if (entry.name.endsWith('.html')) {
+      } else if (entry.name.endsWith(".html")) {
         files.push(fullPath);
       }
     }
@@ -469,50 +481,64 @@ function getHTMLFiles() {
   return files;
 }
 
-console.log('→ Updating HTML templates in build/html...\n');
+console.log("→ Updating HTML templates in build/html...\n");
 
 const htmlFiles = getHTMLFiles();
 let updatedCount = 0;
 
 for (const filePath of htmlFiles) {
-  let content = fs.readFileSync(filePath, 'utf-8');
+  let content = fs.readFileSync(filePath, "utf-8");
   let hasChanges = false;
 
   // 替换所有 JS 文件引用
   for (const [key, info] of Object.entries(manifest)) {
-    if (!info.hash.endsWith('.js')) continue;
+    if (!info.hash.endsWith(".js")) continue;
 
-    const oldPattern = `assets/${key.replace(/\/\//g, '/')}.min.js`;
+    const oldPattern = `assets/${key.replace(/\/\//g, "/")}.min.js`;
     const newPattern = `assets/${info.hash}`;
 
     // 匹配模式: assets/path/file.js?{{ .cur_ver }}
-    const regex = new RegExp(oldPattern.replace(/\//g, '\\/') + '\\?{{\\.cur_ver}}', 'g');
+    const regex = new RegExp(
+      oldPattern.replace(/\//g, "\\/") + "\\?{{\\.cur_ver}}",
+      "g",
+    );
 
     if (regex.test(content)) {
-      content = content.replace(regex, newPattern + '?{{ .cur_ver }}');
+      content = content.replace(regex, newPattern + "?{{ .cur_ver }}");
       hasChanges = true;
-      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.buildHtml, filePath)}`);
+      console.log(
+        `  ✓ Updated ${key} in ${
+          path.relative(config.paths.buildHtml, filePath)
+        }`,
+      );
     }
   }
 
   // 替换所有 CSS 文件引用
   for (const [key, info] of Object.entries(manifest)) {
-    if (!info.hash.endsWith('.css')) continue;
+    if (!info.hash.endsWith(".css")) continue;
 
-    const oldPattern = `assets/${key.replace(/\/\//g, '/')}.min.css`;
+    const oldPattern = `assets/${key.replace(/\/\//g, "/")}.min.css`;
     const newPattern = `assets/${info.hash}`;
 
-    const regex = new RegExp(oldPattern.replace(/\//g, '\\/') + '\\?{{\\.cur_ver}}', 'g');
+    const regex = new RegExp(
+      oldPattern.replace(/\//g, "\\/") + "\\?{{\\.cur_ver}}",
+      "g",
+    );
 
     if (regex.test(content)) {
-      content = content.replace(regex, newPattern + '?{{ .cur_ver }}');
+      content = content.replace(regex, newPattern + "?{{ .cur_ver }}");
       hasChanges = true;
-      console.log(`  ✓ Updated ${key} in ${path.relative(config.paths.buildHtml, filePath)}`);
+      console.log(
+        `  ✓ Updated ${key} in ${
+          path.relative(config.paths.buildHtml, filePath)
+        }`,
+      );
     }
   }
 
   if (hasChanges) {
-    fs.writeFileSync(filePath, content, 'utf-8');
+    fs.writeFileSync(filePath, content, "utf-8");
     updatedCount++;
   }
 }
@@ -576,37 +602,43 @@ clean:
 ### 4. 关键实现细节
 
 #### 4.1 文件哈希生成
+
 使用 sha512 哈希前 8 位作为文件后缀：
+
 ```javascript
-crypto.createHash('sha512').update(content).digest('hex')
+crypto.createHash("sha512").update(content).digest("hex");
 ```
 
 #### 4.2 esbuild 配置
+
 - `bundle: false` - 不打包，保持独立文件
 - `minify: true` - 启用压缩
 - `target: 'es2015'` - 兼容性目标
 - `write: false` - 不直接写入，手动处理哈希
 
 #### 4.3 HTML 更新策略
+
 - 使用正则表达式匹配资源引用
 - 保留 `{{ .base_path }}` 和 `{{ .cur_ver }}` 模板变量
 - 只替换文件名部分，不改变路径结构
 
 #### 4.4 与 Go 集成
+
 - 需要更新 `web/web.go` 中的 embed 路径：
   - `//go:embed build/assets` - 嵌入压缩后的资源文件
   - `//go:embed build/html` - 嵌入更新后的 HTML 模板
-- 或者保持原结构，在构建后将 `web/build` 内容复制到 `web/assets` 和 `web/html`
+- 或者保持原结构，在构建后将 `web/build` 内容复制到 `web/build/assets` 和
+  `web/html`
 - 构建顺序：先前端，后 Go
 
 ### 5. 预期效果
 
-| 指标 | 当前 | 压缩后 | 改善 |
-|------|------|--------|------|
-| JS 文件大小 | ~2.5MB | ~1.0MB | ~60% |
-| CSS 文件大小 | ~520KB | ~200KB | ~62% |
-| 总文件大小 | ~8.3MB | ~6.8MB | ~18% |
-| 缓存策略 | 查询参数 | 内容哈希 | ✓ 永久缓存 |
+| 指标         | 当前     | 压缩后   | 改善       |
+| ------------ | -------- | -------- | ---------- |
+| JS 文件大小  | ~2.5MB   | ~1.0MB   | ~60%       |
+| CSS 文件大小 | ~520KB   | ~200KB   | ~62%       |
+| 总文件大小   | ~8.3MB   | ~6.8MB   | ~18%       |
+| 缓存策略     | 查询参数 | 内容哈希 | ✓ 永久缓存 |
 
 ### 6. 使用方法
 
@@ -627,15 +659,18 @@ make clean
 ### 7. 故障排查
 
 **问题**: esbuild 构建失败
+
 - 检查文件语法：`node -c web/src/assets/js/file.js`
 - 清理并重新构建：`make clean && make build`
 
 **问题**: HTML 更新不生效
+
 - 检查 `web/build/manifest.json` 是否生成
 - 检查 `web/build/html` 目录是否存在
 - 手动运行：`cd web && node scripts/update-html.js`
 
 **问题**: Go 嵌入资源为空
+
 - 检查构建输出：`ls -la web/build/`
 - 检查资源文件：`ls -la web/build/assets/`
 - 检查 HTML 文件：`ls -la web/build/html/`
@@ -652,14 +687,17 @@ make clean
 - **Makefile** - 构建流程集成（新建）
 
 **源文件（不修改）**：
+
 - **web/src/assets/** - 前端资源源文件（JS/CSS/字体等）
 - **web/src/html/** - HTML 模板源文件
 
 **构建输出（自动生成）**：
+
 - **web/build/assets/** - 压缩后的资源文件（带内容哈希）
 - **web/build/html/** - 更新后的 HTML 模板（资源引用已更新）
 - **web/build/manifest.json** - 资源映射清单
 
 **Go 集成（需要修改）**：
+
 - **web/web.go** - 需要更新 embed 路径为 `build/assets` 和 `build/html`
 - 或在 Makefile 中添加复制步骤，将 build 内容复制回 assets 和 html 目录
