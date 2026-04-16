@@ -30,9 +30,9 @@ import (
 func setEmbeddedTemplates(engine *gin.Engine) error {
 	t, err := template.New("").Funcs(engine.FuncMap).ParseFS(
 		webpkg.EmbeddedHTML(),
-		"html/common/page.html",
-		"html/component/aThemeSwitch.html",
-		"html/settings/panel/subscription/subpage.html",
+		"build/html/common/page.html",
+		"build/html/component/aThemeSwitch.html",
+		"build/html/settings/panel/subscription/subpage.html",
 	)
 	if err != nil {
 		return err
