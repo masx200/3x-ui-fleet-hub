@@ -44,8 +44,8 @@
     "size": 54673
   },
   "moment/moment.min.js": {
-    "hash": "moment/moment.min.40f1be07918a78da13182de1669efc70d6c5e41c729201117098034894a78e70bfc7d938905e008139ff048bc5a9ef75809c239ad6caec23f1ccec41e85769be.js",
-    "size": 58758
+    "hash": "moment/moment.min.75ff6b60b2e3321e358bb5b04f253ba36b5ad5a59aea0482f00eb3c894c388b9233f054c536715d25ef0be630aa8422316543a57df7d1fb28aa883d2de63af6b.js",
+    "size": 58762
   },
   "moment/moment-jalali.min.js": {
     "hash": "moment/moment-jalali.min.ae257ad6dbb1ff4651721943f7b464b37b6b7210597c1ae1112f83fd0698783e88a60ee70895dd19df2fa8d6908e116b135e1ebbc5de86bc293ad39a28926268.js",
@@ -104,12 +104,12 @@
     "size": 25370
   },
   "qrcode/qrious2.min.js": {
-    "hash": "qrcode/qrious2.min.19df79f396e040f84e6f313b81585ba9e4511a3ae7e19f671eda39b1ff5edaffbb909f26db4e65de00845ea5da48da55fc039ed3d019c45b795f0a2e03c1a48c.js",
-    "size": 18174
+    "hash": "qrcode/qrious2.min.ef96b83aace4d1c10d37b711e58c3b1f1fd23b0a978b671be716dc8087e152cad811739ab9fef13792e5b831998a372a1f13d6a34f0bb3e86c08bf2e05287902.js",
+    "size": 18178
   },
   "uri/URI.min.js": {
-    "hash": "uri/URI.min.12053123a7877dfe2057c75c2328f25c2dc9839eb7b6e91b3d6ce2aab770f0a0871534b18b39f6b5ebcd52049590e5e8cd000c081b0ab95d48d816469d321a1e.js",
-    "size": 47026
+    "hash": "uri/URI.min.448667971a61d2eef8c5fa82be8927a9575ae783569969db016811c7ff13cac392db9187de81c74c2529dca69c3d8833792a6ee3cb3301cf3c223e895d3caa08.js",
+    "size": 47046
   },
   "persian-datepicker/persian-datepicker.min.js": {
     "hash": "persian-datepicker/persian-datepicker.min.a1b6e85c1d6b5b807e6e3e56bc4c2afa0dd85b0f438342d342433f1907a4a92a39d5669cd17f9a20e8ab30bdfa3468861471b4b16bafb63eeba4ee411f8599d8.js",
